@@ -2,6 +2,7 @@
 ## # Must fix the objectInvoke function if this is changed.
 ## # This is Qt's MaximuParamCount - 1, as it does not take the result value in account.
 
+#{.link: "libQt5Core.so".}
 {.compile: "cpp/capi.cpp".}
 {.pragma: cpp, header: "../private/cpp/capi.h", importc.}
 
@@ -24,12 +25,13 @@ type
   QMessageLogContext* {.cpp, importc: "QMessageLogContext".} = object
   QImage* {.cpp, importc: "QImage".} = object
   GoValue* {.cpp, importc: "GoValue_".} = object
-  GoAddr* = object
+  GoAddr* {.cpp.} = object
   GoTypeSpec* {.cpp, importc: "GoTypeSpec_".} = object
   error* = char
 
 proc errorf*(format: cstring): ptr error {.varargs, cpp.}
 proc panicf*(format: cstring) {.varargs, cpp.}
+
 type
   DataType* = enum
     DTUnknown = 0,              ## # Has an unsupported type.
@@ -50,7 +52,7 @@ type
                                                                                      ## value.
     DTAny = 201,                ## # Can hold any of the above types.
     DTMethod = 202
-  DataValue* = object
+  DataValue* {.importc.} = object
     dataType*: DataType
     data*: array[8, char]
     len*: cint
@@ -162,28 +164,43 @@ proc hookIdleTimer*() {.cpp.}
 proc hookLogHandler*(message: ptr LogMessage) {.cpp.}
 proc hookGoValueReadField*(engine: ptr QQmlEngine; `addr`: ptr GoAddr;
                           memberIndex: cint; getIndex: cint; setIndex: cint;
-                          result: ptr DataValue) {.cpp.}
+                          result: ptr DataValue) {.exportc: "hookGoValueReadField".} =
+  discard
 proc hookGoValueWriteField*(engine: ptr QQmlEngine; `addr`: ptr GoAddr;
-                           memberIndex: cint; setIndex: cint; assign: ptr DataValue) {.cpp.}
+                           memberIndex: cint; setIndex: cint; assign: ptr DataValue) {.exportc: "hookGoValueWriteField".} =
+  discard
 proc hookGoValueCallMethod*(engine: ptr QQmlEngine; `addr`: ptr GoAddr;
-                           memberIndex: cint; result: ptr DataValue) {.cpp.}
-proc hookGoValueDestroyed*(engine: ptr QQmlEngine; `addr`: ptr GoAddr) {.cpp.}
+                           memberIndex: cint; result: ptr DataValue)  {.exportc: "hookGoValueCallMethod".} =
+  discard
+proc hookGoValueDestroyed*(engine: ptr QQmlEngine; `addr`: ptr GoAddr) {.exportc: "hookGoValueDestroyed".} =
+  discard
 proc hookGoValuePaint*(engine: ptr QQmlEngine; `addr`: ptr GoAddr;
-                      reflextIndex: pointer) {.cpp.}
+                      reflextIndex: pointer) {.exportc: "hookGoValuePaint".} =
+  discard
 proc hookRequestImage*(imageFunc: pointer; id: cstring; idLen: cint; width: cint;
-                      height: cint): ptr QImage {.cpp.}
-proc hookGoValueTypeNew*(value: ptr GoValue; spec: ptr GoTypeSpec): ptr GoAddr {.cpp.}
-proc hookWindowHidden*(`addr`: ptr QObject) {.cpp.}
-proc hookSignalCall*(engine: ptr QQmlEngine; `func`: pointer; params: ptr DataValue) {.cpp.}
-proc hookSignalDisconnect*(`func`: pointer) {.cpp.}
-proc hookPanic*(message: cstring) {.cpp.}
+                      height: cint): ptr QImage {.exportc: "hookRequestImage".} =
+  discard
+proc hookGoValueTypeNew*(value: ptr GoValue; spec: ptr GoTypeSpec): ptr GoAddr {.exportc: "hookGoValueTypeNew".} =
+  discard
+proc hookWindowHidden*(`addr`: ptr QObject) {.exportc: "hookWindowHidden".} =
+  discard
+proc hookSignalCall*(engine: ptr QQmlEngine; `func`: pointer; params: ptr DataValue) {.exportc: "hookSignalCall".} =
+  discard
+proc hookSignalDisconnect*(`func`: pointer) {.exportc: "hookSignalDisconnect".} =
+  discard
+proc hookPanic*(message: cstring) {.exportc: "hookPanic".} =
+  discard
 proc hookListPropertyCount*(`addr`: ptr GoAddr; reflectIndex: pointer;
-                           setIndex: pointer): cint {.cpp.}
+                           setIndex: pointer): cint {.exportc: "hookListPropertyCount".} =
+  discard
 proc hookListPropertyAt*(`addr`: ptr GoAddr; reflectIndex: pointer;
-                        setIndex: pointer; i: cint): ptr QObject {.cpp.}
+                        setIndex: pointer; i: cint): ptr QObject {.exportc: "hookListPropertyAt".} =
+  discard
 proc hookListPropertyAppend*(`addr`: ptr GoAddr; reflectIndex: pointer;
-                            setIndex: pointer; obj: ptr QObject) {.cpp.}
+                            setIndex: pointer; obj: ptr QObject) {.exportc: "hookListPropertyAppend".} =
+  discard
 proc hookListPropertyClear*(`addr`: ptr GoAddr; reflectIndex: pointer;
-                           setIndex: pointer) {.cpp.}
+                           setIndex: pointer) {.exportc: "hookListPropertyClear".} =
+  discard
 proc registerResourceData*(version: cint; tree: cstring; name: cstring; data: cstring) {.cpp.}
 proc unregisterResourceData*(version: cint; tree: cstring; name: cstring; data: cstring) {.cpp.}

@@ -1,4 +1,1 @@
-import private/capi
-
-
-var engine = newEngine(nil)
+include private/capi
