@@ -1,6 +1,6 @@
-#include <QBasicTimer>
-#include <QThread>
-#include <QDebug>
+#include <QtCore/QBasicTimer>
+#include <QtCore/QThread>
+#include <QtCore/QDebug>
 #include <mutex>
 
 #include "capi.h"
@@ -42,7 +42,7 @@ class IdleTimer : public QObject
 
     int32_t *guiIdleRun;
 
-    QBasicTimer timer;    
+    QBasicTimer timer;
 };
 
 void idleTimerInit(int32_t *guiIdleRun)

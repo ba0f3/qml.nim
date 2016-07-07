@@ -2,9 +2,18 @@
 ## # Must fix the objectInvoke function if this is changed.
 ## # This is Qt's MaximuParamCount - 1, as it does not take the result value in account.
 
+import posix
+
 #{.link: "libQt5Core.so".}
-{.compile: "cpp/capi.cpp".}
-{.pragma: cpp, header: "../private/cpp/capi.h", importc.}
+{.compile: "all.cpp".}
+
+proc getHeaderPath(): string {.compileTime.} =
+  let path = currentSourcePath()
+  result = substr(path, 0, path.len - 1 - "/capi.nim".len) & "/cpp"
+
+{.passC:"-I"&getHeaderPath().}
+
+{.pragma: cpp, header: "capi.h", importc.}
 
 const
   MaxParams* = 10
@@ -163,7 +172,8 @@ proc registerType*(location: cstring; major: cint; minor: cint; name: cstring;
 proc registerSingleton*(location: cstring; major: cint; minor: cint; name: cstring;
                        typeInfo: ptr GoTypeInfo; spec: ptr GoTypeSpec): cint {.cpp.}
 proc installLogHandler*() {.cpp.}
-proc hookIdleTimer*() {.cpp.}
+proc hookIdleTimer*() {.exportc.} =
+  discard
 proc hookLogHandler*(message: ptr LogMessage) {.exportc.} =
   discard
 proc hookGoValueReadField*(engine: ptr QQmlEngine; `addr`: ptr GoAddr;

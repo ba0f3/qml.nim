@@ -5,7 +5,7 @@ author        = "Huy Doan"
 description   = "QML bindings for Nim"
 license       = "MIT"
 
+skipDirs      = ["tests"]
 # Dependencies
 
 requires "nim >= 0.14.3"
-

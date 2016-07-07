@@ -4,8 +4,8 @@
 #include <QtOpenGL/QGLFunctions>
 
 #include <QtQml/QtQml>
-#include <QQmlEngine>
-#include <QDebug>
+#include <QtQml/QQmlEngine>
+#include <QtCore/QDebug>
 
 #include "govalue.h"
 #include "capi.h"
@@ -181,7 +181,7 @@ QMetaObject *metaObjectFor(GoTypeInfo *typeInfo)
     mob.setFlags(QMetaObjectBuilder::DynamicMetaObject);
 
     GoMemberInfo *memberInfo;
-    
+
     memberInfo = typeInfo->fields;
     int relativePropIndex = mob.propertyCount();
     for (int i = 0; i < typeInfo->fieldsLen; i++) {

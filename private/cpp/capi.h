@@ -27,7 +27,7 @@ typedef void QQuickWindow_;
 typedef void QQuickView_;
 typedef void QMessageLogContext_;
 typedef void QImage_;
-typedef void GoValue;
+typedef void GoValue_;
 typedef void GoAddr;
 typedef void GoTypeSpec_;
 
