@@ -85,7 +85,7 @@ type
     fields*: ptr GoMemberInfo
     methods*: ptr GoMemberInfo
     members*: ptr GoMemberInfo  ## # fields + methods
-    pacint*: ptr GoMemberInfo    ## # in methods too
+    paint*: ptr GoMemberInfo    ## # in methods too
     fieldsLen*: cint
     methodsLen*: cint
     membersLen*: cint
@@ -186,7 +186,7 @@ proc hookGoValueCallMethod*(engine: ptr QQmlEngine; `addr`: ptr GoAddr;
   discard
 proc hookGoValueDestroyed*(engine: ptr QQmlEngine; `addr`: ptr GoAddr) {.exportc.} =
   discard
-proc hookGoValuePacint*(engine: ptr QQmlEngine; `addr`: ptr GoAddr;
+proc hookGoValuePaint*(engine: ptr QQmlEngine; `addr`: ptr GoAddr;
                       reflextIndex: intptr_t) {.exportc.} =
   discard
 proc hookRequestImage*(imageFunc: pointer; id: cstring; idLen: cint; width: cint;
