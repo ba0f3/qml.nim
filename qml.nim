@@ -14,7 +14,9 @@ type
 
   Context* = ref object of Common
 
+  Window* = ref object of Common
 
+proc runMain*(f: proc()) =
 
 proc run*(f: proc()) =
   newGuiApplication()
@@ -75,5 +77,39 @@ proc loadString*(e: Engine, location: string, qml: string): Component =
   return e.load(location, newStringStream(qml))
 
 proc context*(e: Engine): Context =
+  result = new(Context)
   result.engine = e.engine
   result.cptr = engineRootContext(cast[ptr QQmlEngine](e.cptr))
+
+
+proc createWindow*(obj: Common, ctx: Context): Window =
+  if objectIsComponent(obj.cptr) == 0:
+    panicf("oject is not a component")
+  result = new(Window)
+  result.engine = obj.engine
+  runMain(proc() =
+    var ctxaddr = nil
+    if ctx != nil:
+      ctxaddr = ctx.addr
+    result.cptr = componentCreateWindow(obj.cptr, ctxaddr)
+  )
+
+proc show*(w: Window) =
+  runMain(proc() =
+    windowShow(w.cptr)
+
+proc hide*(w: Window) =
+  runMain(proc() =
+    windowHide(w.cptr)
+
+proc platformId*(w: Window): Common =
+  result = new(Common)
+  result.engine = w.engine
+  runMain(proc() =
+    obj.cptr = windowRootObject(w.ctr)Common
+  return obj
+
+proc wait(w: Window) =
+  runMain(proc() =
+    windowConnectHidden(w.cptr)
+  )
