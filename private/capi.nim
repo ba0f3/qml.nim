@@ -2,6 +2,7 @@
 ## # Must fix the objectInvoke function if this is changed.
 ## # This is Qt's MaximuParamCount - 1, as it does not take the result value in account.
 
+#{.passC: "-std=c++0x".}
 {.compile: "all.cpp".}
 
 proc getHeaderPath(): string {.compileTime.} =
@@ -16,26 +17,26 @@ const
   MaxParams* = 10
 
 type
-  intptr_t* {.importc.} = int
+  intptr_t* {.importc, pure.} = cint
 
 type
-  QApplication* {.cpp, importc: "QApplication_".} = object
-  QMetaObject* {.cpp, importc: "QMetaObject_".} = object
-  QObject* {.cpp, importc: "QObject_".} = object
-  QVariant* {.cpp, importc: "QVariant_".} = object
-  QVariantList* {.cpp, importc: "QVariantList_".} = object
-  QString* {.cpp, importc: "QString_".} = object
-  QQmlEngine* {.cpp, importc: "QQmlEngine_".} = object
-  QQmlContext* {.cpp, importc: "QQmlContext_".} = object
-  QQmlComponent* {.cpp, importc: "QQmlComponent_".} = object
-  QQmlListProperty* {.cpp, importc: "QQmlListProperty_".} = object
-  QQuickWindow* {.cpp, importc: "QQuickWindow_".} = object
-  QQuickView* {.cpp, importc: "QQuickView_".} = object
-  QMessageLogContext* {.cpp, importc: "QMessageLogContext_".} = object
-  QImage* {.cpp, importc: "QImage_".} = object
-  GoValue* {.cpp, importc: "GoValue_".} = object
-  GoAddr* {.cpp.} = object
-  GoTypeSpec* {.cpp, importc: "GoTypeSpec_".} = object
+  QApplication* {.cpp, importc: "QApplication_", pure.} = object
+  QMetaObject* {.cpp, importc: "QMetaObject_", pure.} = object
+  QObject* {.cpp, importc: "QObject_", pure.} = object
+  QVariant* {.cpp, importc: "QVariant_", pure.} = object
+  QVariantList* {.cpp, importc: "QVariantList_", pure.} = object
+  QString* {.cpp, importc: "QString_", pure.} = object
+  QQmlEngine* {.cpp, importc: "QQmlEngine_", pure.} = object
+  QQmlContext* {.cpp, importc: "QQmlContext_", pure.} = object
+  QQmlComponent* {.cpp, importc: "QQmlComponent_", pure.} = object
+  QQmlListProperty* {.cpp, importc: "QQmlListProperty_", pure.} = object
+  QQuickWindow* {.cpp, importc: "QQuickWindow_", pure.} = object
+  QQuickView* {.cpp, importc: "QQuickView_", pure.} = object
+  QMessageLogContext* {.cpp, importc: "QMessageLogContext_", pure.} = object
+  QImage* {.cpp, importc: "QImage_", pure.} = object
+  GoValue* {.cpp, importc: "GoValue_", pure.} = object
+  GoAddr* {.cpp, pure.} = object
+  GoTypeSpec* {.cpp, importc: "GoTypeSpec_", pure.} = object
   error* = char
 
 proc errorf*(format: cstring): ptr error {.varargs, cpp.}
@@ -84,7 +85,7 @@ type
     fields*: ptr GoMemberInfo
     methods*: ptr GoMemberInfo
     members*: ptr GoMemberInfo  ## # fields + methods
-    paint*: ptr GoMemberInfo    ## # in methods too
+    pacint*: ptr GoMemberInfo    ## # in methods too
     fieldsLen*: cint
     methodsLen*: cint
     membersLen*: cint
@@ -109,7 +110,7 @@ proc idleTimerInit*(guiIdleRun: ptr int32) {.cpp.}
 proc idleTimerStart*() {.cpp.}
 proc currentThread*(): pointer {.cpp.}
 proc appThread*(): pointer {.cpp.}
-proc newEngine*(parent: ptr QObject): ptr QQmlEngine {.cpp.}
+proc newEngine*(parent: ptr QObject = nil): ptr QQmlEngine {.cpp.}
 proc engineRootContext*(engine: ptr QQmlEngine): ptr QQmlContext {.cpp.}
 proc engineSetOwnershipCPP*(engine: ptr QQmlEngine; `object`: ptr QObject) {.cpp.}
 proc engineSetOwnershipJS*(engine: ptr QQmlEngine; `object`: ptr QObject) {.cpp.}
@@ -185,7 +186,7 @@ proc hookGoValueCallMethod*(engine: ptr QQmlEngine; `addr`: ptr GoAddr;
   discard
 proc hookGoValueDestroyed*(engine: ptr QQmlEngine; `addr`: ptr GoAddr) {.exportc.} =
   discard
-proc hookGoValuePaint*(engine: ptr QQmlEngine; `addr`: ptr GoAddr;
+proc hookGoValuePacint*(engine: ptr QQmlEngine; `addr`: ptr GoAddr;
                       reflextIndex: intptr_t) {.exportc.} =
   discard
 proc hookRequestImage*(imageFunc: pointer; id: cstring; idLen: cint; width: cint;
