@@ -2,9 +2,6 @@
 ## # Must fix the objectInvoke function if this is changed.
 ## # This is Qt's MaximuParamCount - 1, as it does not take the result value in account.
 
-import posix
-
-#{.link: "libQt5Core.so".}
 {.compile: "all.cpp".}
 
 proc getHeaderPath(): string {.compileTime.} =
@@ -19,7 +16,7 @@ const
   MaxParams* = 10
 
 type
-  intptr_t {.importc.} = int
+  intptr_t* {.importc.} = int
 
 type
   QApplication* {.cpp, importc: "QApplication_".} = object
@@ -126,7 +123,7 @@ proc contextSetProperty*(context: ptr QQmlContext; name: ptr QString;
 proc contextSetObject*(context: ptr QQmlContext; value: ptr QObject) {.cpp.}
 proc contextSpawn*(context: ptr QQmlContext): ptr QQmlContext {.cpp.}
 proc delObject*(`object`: ptr QObject) {.cpp.}
-proc delObjectLater*(`object`: ptr QObject) {.cpp.}
+proc delObjectLater*(`object`: pointer) {.cpp.}
 proc objectTypeName*(`object`: ptr QObject): cstring {.cpp.}
 proc objectGetProperty*(`object`: ptr QObject; name: cstring; result: ptr DataValue): cint {.cpp.}
 proc objectSetProperty*(`object`: ptr QObject; name: cstring; value: ptr DataValue): ptr error {.cpp.}
