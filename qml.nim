@@ -1,4 +1,4 @@
-import strutils, os, streams, coro, tables, locks
+import strutils, os, streams, coro
 import private/capi, private/util
 
 
@@ -23,8 +23,6 @@ var
   guiIdleRun: int32
   guiLock: int
 
-  waitingWindows = newTable[pointer, Lock]()
-
 proc runMain*(f: proc()) =
   if currentThread() == appThread():
     f()
@@ -47,8 +45,7 @@ proc run*(f: proc()) =
 
   idleTimerInit(addr guiIdleRun)
   start(proc()=
-
-    f()
+    runMain(f)
     applicationExit()
   )
   coro.run()
@@ -84,7 +81,7 @@ proc newEngine*(): Engine =
 proc destroy*(e: var Engine) =
   if not e.destroyed:
     e.destroyed = true
-    delObjectlater(e.cptr)
+    delObjectLater(e.cptr)
 
 proc load*(e: Engine, location: string, r: Stream): Component =
   let qrc = location.startsWith("qrc:")
@@ -133,7 +130,6 @@ proc context*(e: Engine): Context =
   result.engine = e.engine
   result.cptr = engineRootContext(cast[ptr QQmlEngine](e.cptr))
 
-
 proc createWindow*(obj: Common, ctx: Context): Window =
   if objectIsComponent(cast[ptr QObject](obj.cptr)) == 0:
     panicf("oject is not a component")
@@ -166,21 +162,12 @@ proc platformId*(w: Window): Common =
   result = obj
 
 proc wait*(w: Window) =
-  var m: Lock
-  initLock(m)
-  m.acquire()
   runMain(proc() =
-    waitingWindows[w.cptr] = m
     windowConnectHidden(cast[ptr QQuickWindow](w.cptr))
   )
 
 proc hookWindowHidden*(cptr: ptr QObject) {.exportc.} =
   echo "hookWindowHidden called"
-  if not waitingWindows.contains(cptr):
-    raise newException(SystemError, "window is not waiting")
-  var m = waitingWindows[cptr]
-  waitingWindows.del(cptr)
-  m.release()
 
   echo "TODO: only quit once no handler is handling this event"
   quit()
