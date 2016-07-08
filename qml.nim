@@ -1,5 +1,5 @@
-import strutils, os, streams
-import private/capi
+import strutils, os, streams, coro, tables, locks
+import private/capi, private/util
 
 
 type
@@ -16,13 +16,65 @@ type
 
   Window* = ref object of Common
 
+
+
+var
+  initialized: bool
+  guiIdleRun: int32
+  guiLock: int
+
+  waitingWindows = newTable[pointer, Lock]()
+
 proc runMain*(f: proc()) =
+  if currentThread() == appThread():
+    f()
+    return
+  inc(guiIdleRun)
+  echo "guiIdleRun ", guiIdleRun
+  if guiIdleRun == 1:
+    idleTimerStart()
+  f()
 
 proc run*(f: proc()) =
+  if initialized:
+    raise newException(SystemError, "qml.Run called more than once")
+  initialized = true
+
   newGuiApplication()
-  #idleTimerInit()
-  f()
-  applicationExit()
+
+  if currentThread() != appThread():
+    raise newException(SystemError, "Run must be called on the main thread")
+
+  idleTimerInit(addr guiIdleRun)
+  start(proc()=
+
+    f()
+    applicationExit()
+  )
+  coro.run()
+  applicationExec()
+
+
+proc lock*() =
+  runMain(proc()=
+    inc(guiLock)
+  )
+
+proc unlock*() =
+  runMain(proc()=
+    if guiLock == 0:
+      raise newException(SystemError, "qml.unlock callied without lock being held")
+    dec(guiLock)
+  )
+
+proc flush*() =
+  runMain(proc()=
+    applicationFlushAll()
+  )
+
+
+#proc changed*() =
+
 
 proc newEngine*(): Engine =
   result = new(Engine)
@@ -83,33 +135,52 @@ proc context*(e: Engine): Context =
 
 
 proc createWindow*(obj: Common, ctx: Context): Window =
-  if objectIsComponent(obj.cptr) == 0:
+  if objectIsComponent(cast[ptr QObject](obj.cptr)) == 0:
     panicf("oject is not a component")
-  result = new(Window)
-  result.engine = obj.engine
+  var win = new(Window)
+  win.engine = obj.engine
   runMain(proc() =
-    var ctxaddr = nil
+    var ctxaddr: ptr QQmlContext
     if ctx != nil:
-      ctxaddr = ctx.addr
-    result.cptr = componentCreateWindow(obj.cptr, ctxaddr)
+      ctxaddr = cast[ptr QQmlContext](ctx.cptr)
+    win.cptr = componentCreateWindow(cast[ptr QQmlComponent](obj.cptr), ctxaddr)
   )
+  result = win
 
 proc show*(w: Window) =
   runMain(proc() =
-    windowShow(w.cptr)
+    windowShow(cast[ptr QQuickWindow](w.cptr))
+  )
 
 proc hide*(w: Window) =
   runMain(proc() =
-    windowHide(w.cptr)
+    windowHide(cast[ptr QQuickWindow](w.cptr))
+  )
 
 proc platformId*(w: Window): Common =
-  result = new(Common)
-  result.engine = w.engine
+  var obj = new(Common)
+  obj.engine = w.engine
   runMain(proc() =
-    obj.cptr = windowRootObject(w.ctr)Common
-  return obj
-
-proc wait(w: Window) =
-  runMain(proc() =
-    windowConnectHidden(w.cptr)
+    obj.cptr = windowRootObject(cast[ptr QQuickWindow](w.cptr))
   )
+  result = obj
+
+proc wait*(w: Window) =
+  var m: Lock
+  initLock(m)
+  m.acquire()
+  runMain(proc() =
+    waitingWindows[w.cptr] = m
+    windowConnectHidden(cast[ptr QQuickWindow](w.cptr))
+  )
+
+proc hookWindowHidden*(cptr: ptr QObject) {.exportc.} =
+  echo "hookWindowHidden called"
+  if not waitingWindows.contains(cptr):
+    raise newException(SystemError, "window is not waiting")
+  var m = waitingWindows[cptr]
+  waitingWindows.del(cptr)
+  m.release()
+
+  echo "TODO: only quit once no handler is handling this event"
+  quit()

@@ -2,7 +2,7 @@ import QtQuick 2.0
 
 Rectangle {
     id: page
-    width: 500; height: 200
+    width: 320; height: 480
     color: "lightgray"
 
     Text {
@@ -12,4 +12,10 @@ Rectangle {
         anchors.horizontalCenter: page.horizontalCenter
         font.pointSize: 24; font.bold: true
     }
+
+    MouseArea {
+        anchors.fill: parent
+        onClicked: page.clicked(page.cellColor)
+    }
+
 }

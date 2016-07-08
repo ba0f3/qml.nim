@@ -4,6 +4,7 @@
 #include <QtQml/QtQml>
 #include <QtCore/QDebug>
 #include <QtQuick/QQuickImageProvider>
+#include <QtCore/QThread>
 
 #include <string.h>
 
@@ -45,6 +46,8 @@ void panicf(const char *format, ...)
 
 void newGuiApplication()
 {
+    if (QCoreApplication::instance())
+      return;
     static char empty[1] = {0};
     static char *argv[] = {empty, 0};
     static int argc = 1;
@@ -69,12 +72,12 @@ void applicationFlushAll()
     qApp->processEvents();
 }
 
-void *currentThread()
+QThread_ *currentThread()
 {
     return QThread::currentThread();
 }
 
-void *appThread()
+QThread_ *appThread()
 {
     return QCoreApplication::instance()->thread();
 }

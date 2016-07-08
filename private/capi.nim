@@ -34,6 +34,7 @@ type
   QQuickView* {.cpp, importc: "QQuickView_", pure.} = object
   QMessageLogContext* {.cpp, importc: "QMessageLogContext_", pure.} = object
   QImage* {.cpp, importc: "QImage_", pure.} = object
+  QThread* {.cpp, importc: "QThread_", pure.} = object
   GoValue* {.cpp, importc: "GoValue_", pure.} = object
   GoAddr* {.cpp, pure.} = object
   GoTypeSpec* {.cpp, importc: "GoTypeSpec_", pure.} = object
@@ -108,8 +109,8 @@ proc applicationExit*() {.cpp.}
 proc applicationFlushAll*() {.cpp.}
 proc idleTimerInit*(guiIdleRun: ptr int32) {.cpp.}
 proc idleTimerStart*() {.cpp.}
-proc currentThread*(): pointer {.cpp.}
-proc appThread*(): pointer {.cpp.}
+proc currentThread*(): ptr QThread {.cpp.}
+proc appThread*(): ptr QThread {.cpp.}
 proc newEngine*(parent: ptr QObject = nil): ptr QQmlEngine {.cpp.}
 proc engineRootContext*(engine: ptr QQmlEngine): ptr QQmlContext {.cpp.}
 proc engineSetOwnershipCPP*(engine: ptr QQmlEngine; `object`: ptr QObject) {.cpp.}
@@ -171,48 +172,46 @@ proc registerSingleton*(location: cstring; major: cint; minor: cint; name: cstri
                        typeInfo: ptr GoTypeInfo; spec: ptr GoTypeSpec): cint {.cpp.}
 proc installLogHandler*() {.cpp.}
 proc hookIdleTimer*() {.exportc.} =
-  discard
+  echo "hookIdleTimer called"
 proc hookLogHandler*(message: ptr LogMessage) {.exportc.} =
-  discard
+  echo "hookLogHander called"
 proc hookGoValueReadField*(engine: ptr QQmlEngine; `addr`: ptr GoAddr;
                           memberIndex: cint; getIndex: cint; setIndex: cint;
                           result: ptr DataValue) {.exportc.} =
-  discard
+  echo "hookGoValueReadField called"
 proc hookGoValueWriteField*(engine: ptr QQmlEngine; `addr`: ptr GoAddr;
                            memberIndex: cint; setIndex: cint; assign: ptr DataValue) {.exportc.} =
-  discard
+  echo "hookGoValueWriteField called"
 proc hookGoValueCallMethod*(engine: ptr QQmlEngine; `addr`: ptr GoAddr;
                            memberIndex: cint; result: ptr DataValue)  {.exportc.} =
-  discard
+  echo "hookGoValueCallMethod called"
 proc hookGoValueDestroyed*(engine: ptr QQmlEngine; `addr`: ptr GoAddr) {.exportc.} =
-  discard
+  echo "hookGoValueDestroyed called"
 proc hookGoValuePaint*(engine: ptr QQmlEngine; `addr`: ptr GoAddr;
                       reflextIndex: intptr_t) {.exportc.} =
-  discard
+  echo "hookGoValuePaint called"
 proc hookRequestImage*(imageFunc: pointer; id: cstring; idLen: cint; width: cint;
                       height: cint): ptr QImage {.exportc.} =
-  discard
+  echo "hookRequestImage called"
 proc hookGoValueTypeNew*(value: ptr GoValue; spec: ptr GoTypeSpec): ptr GoAddr {.exportc.} =
-  discard
-proc hookWindowHidden*(`addr`: ptr QObject) {.exportc.} =
-  discard
+  echo "hookGoValueTypeNew called"
 proc hookSignalCall*(engine: ptr QQmlEngine; `func`: pointer; params: ptr DataValue) {.exportc.} =
-  discard
+  echo "hookSignalCall called"
 proc hookSignalDisconnect*(`func`: pointer) {.exportc.} =
-  discard
+  echo "hookSignalDisconnect called"
 proc hookPanic*(message: cstring) {.exportc.} =
-  discard
+  echo "hookPanic called"
 proc hookListPropertyCount*(`addr`: ptr GoAddr; reflectIndex: intptr_t;
                            setIndex: intptr_t): cint {.exportc.} =
-  discard
+  echo "hookListPropertyCount called"
 proc hookListPropertyAt*(`addr`: ptr GoAddr; reflectIndex: intptr_t;
                         setIndex: intptr_t; i: cint): ptr QObject {.exportc.} =
-  discard
+  echo "hookListPropertyAt called"
 proc hookListPropertyAppend*(`addr`: ptr GoAddr; reflectIndex: intptr_t;
                             setIndex: intptr_t; obj: ptr QObject) {.exportc.} =
-  discard
+  echo "hookListPropertyAppend called"
 proc hookListPropertyClear*(`addr`: ptr GoAddr; reflectIndex: intptr_t;
                            setIndex: intptr_t) {.exportc.} =
-  discard
+  echo "hookListPropertyClear called"
 proc registerResourceData*(version: cint; tree: cstring; name: cstring; data: cstring) {.cpp.}
 proc unregisterResourceData*(version: cint; tree: cstring; name: cstring; data: cstring) {.cpp.}

@@ -4,8 +4,7 @@ run(proc() =
   let
     engine = newEngine()
     comp = engine.loadFile("test.qml")
-    win = comp.CreateWindow(nil)
-    win.show()
-
-    win.wait()
+    win = comp.createWindow(nil)
+  win.show()
+  win.wait()
 )

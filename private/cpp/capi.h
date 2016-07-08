@@ -27,6 +27,7 @@ typedef void QQuickWindow_;
 typedef void QQuickView_;
 typedef void QMessageLogContext_;
 typedef void QImage_;
+typedef void QThread_;
 typedef void GoValue_;
 typedef void GoAddr;
 typedef void GoTypeSpec_;
@@ -113,8 +114,8 @@ void applicationFlushAll();
 void idleTimerInit(int32_t *guiIdleRun);
 void idleTimerStart();
 
-void *currentThread();
-void *appThread();
+QThread_ *currentThread();
+QThread_ *appThread();
 
 QQmlEngine_ *newEngine(QObject_ *parent);
 QQmlContext_ *engineRootContext(QQmlEngine_ *engine);
