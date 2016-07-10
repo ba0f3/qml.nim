@@ -1,9 +1,16 @@
 import QtQuick 2.0
+import NimExtension 1.0
+
 
 Rectangle {
     id: page
-    width: 320; height: 480
+    width: 480; height: 320
     color: "lightgray"
+
+    NimValue {
+    }
+
+
 
     Text {
         id: helloText
@@ -15,7 +22,12 @@ Rectangle {
 
     MouseArea {
         anchors.fill: parent
-        onClicked: page.clicked(page.cellColor)
+        onClicked: {
+	  page.color = "black"
+	  helloText.color = "darkgreen"
+	  helloText.text = "Welcome Geeks!!!"
+//	  nim.value = "Welcome to Nim"
+        }
     }
 
 }

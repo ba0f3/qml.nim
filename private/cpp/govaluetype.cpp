@@ -169,7 +169,7 @@ int registerSingleton(char *location, int major, int minor, char *name, GoTypeIn
         GOPAINTEDVALUETYPE_CASE_SINGLETON(30)
         }
     }
-    panicf("too many registered types; please contact the Go QML developers");
+    panicf("too many registered types; please contact the Nim QML developers");
     return 0;
 }
 
@@ -247,7 +247,7 @@ int registerType(char *location, int major, int minor, char *name, GoTypeInfo *i
         GOPAINTEDVALUETYPE_CASE(30)
         }
     }
-    panicf("too many registered types; please contact the Go QML developers");
+    panicf("too many registered types; please contact the Nim QML developers");
     return 0;
 }
 

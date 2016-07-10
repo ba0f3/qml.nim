@@ -37,7 +37,8 @@ type
   QThread* {.cpp, importc: "QThread_", pure.} = object
   GoValue* {.cpp, importc: "GoValue_", pure.} = object
   GoAddr* {.cpp, pure.} = object
-  GoTypeSpec* {.cpp, importc: "GoTypeSpec_", pure.} = object
+  GoTypeSpec* {.cpp, importc:"GoTypeSpec_", incompleteStruct.} = object
+
   error* = char
 
 proc errorf*(format: cstring): ptr error {.varargs, cpp.}
@@ -68,7 +69,7 @@ type
     data*: array[8, char]
     len*: cint
 
-  GoMemberInfo* = object
+  MemberInfo* = object
     memberName*: cstring       ## # points to memberNames
     memberType*: DataType
     reflectIndex*: cint
@@ -81,12 +82,12 @@ type
     numIn*: cint
     numOut*: cint
 
-  GoTypeInfo* = object
+  TypeInfo* {.cpp, importc: "GoTypeInfo".} = object
     typeName*: cstring
-    fields*: ptr GoMemberInfo
-    methods*: ptr GoMemberInfo
-    members*: ptr GoMemberInfo  ## # fields + methods
-    paint*: ptr GoMemberInfo    ## # in methods too
+    fields*: ptr MemberInfo
+    methods*: ptr MemberInfo
+    members*: ptr MemberInfo  ## # fields + methods
+    paint*: ptr MemberInfo    ## # in methods too
     fieldsLen*: cint
     methodsLen*: cint
     membersLen*: cint
@@ -160,16 +161,16 @@ proc imageBits*(image: ptr QImage): ptr cuchar {.cpp.}
 proc imageConstBits*(image: ptr QImage): ptr cuchar {.cpp.}
 proc newString*(data: cstring; len: cint): ptr QString {.cpp.}
 proc delString*(s: ptr QString) {.cpp.}
-proc newGoValue*(`addr`: ptr GoAddr; typeInfo: ptr GoTypeInfo; parent: ptr QObject): ptr GoValue {.cpp.}
-proc goValueActivate*(value: ptr GoValue; typeInfo: ptr GoTypeInfo; addrOffset: cint) {.cpp.}
+proc newGoValue*(`addr`: ptr GoAddr; typeInfo: ptr TypeInfo; parent: ptr QObject): ptr GoValue {.cpp.}
+proc goValueActivate*(value: ptr GoValue; typeInfo: ptr TypeInfo; addrOffset: cint) {.cpp.}
 proc packDataValue*(`var`: ptr QVariant; result: ptr DataValue) {.cpp.}
 proc unpackDataValue*(value: ptr DataValue; result: ptr QVariant) {.cpp.}
 proc newVariantList*(list: ptr DataValue; len: cint): ptr QVariantList {.cpp.}
 proc newListProperty*(`addr`: ptr GoAddr; reflectIndex: pointer; setIndex: pointer): ptr QQmlListProperty {.cpp.}
 proc registerType*(location: cstring; major: cint; minor: cint; name: cstring;
-                  typeInfo: ptr GoTypeInfo; spec: ptr GoTypeSpec): cint {.cpp.}
+                  typeInfo: ptr TypeInfo; spec: pointer): cint {.cpp.}
 proc registerSingleton*(location: cstring; major: cint; minor: cint; name: cstring;
-                       typeInfo: ptr GoTypeInfo; spec: ptr GoTypeSpec): cint {.cpp.}
+                       typeInfo: ptr TypeInfo; spec: pointer): cint {.cpp.}
 proc installLogHandler*() {.cpp.}
 proc hookIdleTimer*() {.exportc.} =
   echo "hookIdleTimer called"
@@ -193,8 +194,6 @@ proc hookGoValuePaint*(engine: ptr QQmlEngine; `addr`: ptr GoAddr;
 proc hookRequestImage*(imageFunc: pointer; id: cstring; idLen: cint; width: cint;
                       height: cint): ptr QImage {.exportc.} =
   echo "hookRequestImage called"
-proc hookGoValueTypeNew*(value: ptr GoValue; spec: ptr GoTypeSpec): ptr GoAddr {.exportc.} =
-  echo "hookGoValueTypeNew called"
 proc hookSignalCall*(engine: ptr QQmlEngine; `func`: pointer; params: ptr DataValue) {.exportc.} =
   echo "hookSignalCall called"
 proc hookSignalDisconnect*(`func`: pointer) {.exportc.} =

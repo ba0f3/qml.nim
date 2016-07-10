@@ -1,8 +1,10 @@
+
 import strutils, os, streams, coro
 import private/capi, private/util
 
 
 type
+
   Common* = ref object of RootObj
     cptr: pointer
     engine: ptr Engine
@@ -11,66 +13,55 @@ type
     destroyed: bool
 
   Component* = ref object of Common
-
   Context* = ref object of Common
-
   Window* = ref object of Common
-
-
 
 var
   initialized: bool
   guiIdleRun: int32
   guiLock: int
 
-proc runMain*(f: proc()) =
-  if currentThread() == appThread():
-    f()
-    return
-  inc(guiIdleRun)
-  echo "guiIdleRun ", guiIdleRun
-  if guiIdleRun == 1:
-    idleTimerStart()
-  f()
+  waitingWindows: int
 
 proc run*(f: proc()) =
   if initialized:
-    raise newException(SystemError, "qml.Run called more than once")
+    raise newException(SystemError, "qml.run called more than once")
   initialized = true
 
   newGuiApplication()
 
   if currentThread() != appThread():
-    raise newException(SystemError, "Run must be called on the main thread")
+    raise newException(SystemError, "run must be called on the main thread")
 
   idleTimerInit(addr guiIdleRun)
-  start(proc()=
-    runMain(f)
-    applicationExit()
-  )
+  coro.start(f)
   coro.run()
   applicationExec()
 
 
 proc lock*() =
-  runMain(proc()=
-    inc(guiLock)
-  )
+  inc(guiLock)
 
 proc unlock*() =
-  runMain(proc()=
-    if guiLock == 0:
-      raise newException(SystemError, "qml.unlock callied without lock being held")
-    dec(guiLock)
-  )
+  if guiLock == 0:
+    raise newException(SystemError, "qml.unlock callied without lock being held")
+  dec(guiLock)
 
 proc flush*() =
-  runMain(proc()=
-    applicationFlushAll()
-  )
-
+  applicationFlushAll()
 
 #proc changed*() =
+
+type
+  ValueFold* = object
+    engine*: ptr Engine
+    gvalue: proc()
+    cvalue: pointer
+    init: proc()
+    prev: ptr ValueFold
+    next : ptr ValueFold
+    owner: uint8
+
 
 
 proc newEngine*(): Engine =
@@ -135,39 +126,71 @@ proc createWindow*(obj: Common, ctx: Context): Window =
     panicf("oject is not a component")
   var win = new(Window)
   win.engine = obj.engine
-  runMain(proc() =
-    var ctxaddr: ptr QQmlContext
-    if ctx != nil:
-      ctxaddr = cast[ptr QQmlContext](ctx.cptr)
-    win.cptr = componentCreateWindow(cast[ptr QQmlComponent](obj.cptr), ctxaddr)
-  )
+
+  var ctxaddr: ptr QQmlContext
+  if ctx != nil:
+    ctxaddr = cast[ptr QQmlContext](ctx.cptr)
+  win.cptr = componentCreateWindow(cast[ptr QQmlComponent](obj.cptr), ctxaddr)
   result = win
 
 proc show*(w: Window) =
-  runMain(proc() =
-    windowShow(cast[ptr QQuickWindow](w.cptr))
-  )
+  windowShow(cast[ptr QQuickWindow](w.cptr))
 
 proc hide*(w: Window) =
-  runMain(proc() =
-    windowHide(cast[ptr QQuickWindow](w.cptr))
-  )
+  windowHide(cast[ptr QQuickWindow](w.cptr))
 
 proc platformId*(w: Window): Common =
   var obj = new(Common)
   obj.engine = w.engine
-  runMain(proc() =
-    obj.cptr = windowRootObject(cast[ptr QQuickWindow](w.cptr))
-  )
+  obj.cptr = windowRootObject(cast[ptr QQuickWindow](w.cptr))
+
   result = obj
 
 proc wait*(w: Window) =
-  runMain(proc() =
-    windowConnectHidden(cast[ptr QQuickWindow](w.cptr))
-  )
+  inc(waitingWindows)
+  windowConnectHidden(cast[ptr QQuickWindow](w.cptr))
 
 proc hookWindowHidden*(cptr: ptr QObject) {.exportc.} =
-  echo "hookWindowHidden called"
+  echo "hookWindowHidden: only quit once no handler is handling this event"
+  if waitingWindows <= 0:
+    raise newException(SystemError, "no window is waiting")
 
-  echo "TODO: only quit once no handler is handling this event"
-  quit()
+  dec(waitingWindows)
+  if waitingWindows <= 0:
+    applicationExit()
+
+type
+  NimObject* = object
+    value: string
+  Object* = object
+  TypeSpec* {.exportc.} = object
+    name*: string
+    singleton*: bool
+
+
+var
+  types: seq[TypeSpec] = @[]
+
+proc registerType*(location: string, major, minor: int, spec: TypeSpec) =
+  var spec = spec
+
+  var typeInfo: TypeInfo
+
+  if spec.singleton:
+    discard registerSingleton(location.cstring, major.cint, minor.cint, spec.name.cstring, addr typeInfo, addr spec)
+  else:
+    discard capi.registerType(location.cstring, major.cint, minor.cint, spec.name.cstring, addr typeInfo, addr spec)
+
+  types.add(spec)
+
+proc registerTypes*(location: string, major, minor: int, types: openArray[TypeSpec]) =
+  for t in types:
+    registerType(location, major, minor, t)
+
+proc hookGoValueTypeNew*(value: ptr GoValue; specp: ptr GoTypeSpec): ptr GoAddr {.exportc.} =
+  echo "hookGoValueTypeNew called"
+  let spec: ptr TypeSpec = cast[ptr TypeSpec](specp)
+  echo spec.name
+
+type
+  NimValue* {.importc.} = object
