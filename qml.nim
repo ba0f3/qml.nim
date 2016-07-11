@@ -2,6 +2,7 @@
 import strutils, os, streams, coro
 import private/capi, private/util
 
+export Q_OBJECT
 
 type
 
