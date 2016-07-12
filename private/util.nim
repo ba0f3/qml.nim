@@ -77,18 +77,19 @@ macro Q_OBJECT*(head: expr, body: stmt): stmt {.immediate.} =
   var
     fieldList: seq[string] = @[]
     fieldName, fieldType: NimNode
+    fieldNameStr: string
     newFieldName, setter: NimNode
     changed: NimNode
     isArray: bool
     typeNameStr = $typeName
 
-  var
     recList = newNimNode(nnkRecList)
     slotProcs = newStmtList()
     signalProcs = newStmtList()
     typeDeclaration, memberDeclaration = newStmtList()
 
-    numField, numMethod: int
+    numField: int
+
 
   for node in body.children:
     case node.kind:
@@ -105,6 +106,8 @@ macro Q_OBJECT*(head: expr, body: stmt): stmt {.immediate.} =
         for n in node.children:
           fieldName = n[0]
           fieldType = n[1]
+
+          fieldNameStr = $n[0]
 
           if n[1].kind == nnkBracketExpr:
             if n[1][0] != ident("seq"):
@@ -142,8 +145,6 @@ macro Q_OBJECT*(head: expr, body: stmt): stmt {.immediate.} =
           signalProcs.add quote do:
             proc `changed`*(self: `typeName`) =
               discard
-
-
       else:
         result.add(node)
 
@@ -158,15 +159,41 @@ macro Q_OBJECT*(head: expr, body: stmt): stmt {.immediate.} =
 
   result[0][0][0][2][0][2] = recList
 
-  typeDeclaration.add quote do:
-    var typeInfo: TypeInfo
-    typeInfo.typeName = `typeNameStr`
-    typeInfo.fieldsLen = `numField`
-    types.add(typeInfo)
+  var
+    methodsLen = numField * 2 # setter + getter + sinal?
+    membersLen = numField * 3 # field + setter * getter
 
+  typeDeclaration.add quote do:
+    var
+      typeInfo: TypeInfo
+      memberInfoSize = sizeof(MemberInfo)
+      membersSize = memberInfoSize * `membersLen`
+      members = cast[uint](alloc(membersSize))
+
+      membersi = 0
+      memberInfo: ptr MemberInfo
+
+  for node in body.children:
+    if node.kind == nnkVarSection:
+
+        memberDeclaration =  quote do:
+          memberInfo = cast[ptr MemberInfo](members + uint(memberInfoSize * membersi))
+          memberInfo.memberName = `fieldNameStr`
+          inc(membersi)
+
+        typeDeclaration[0].add memberDeclaration[0]
+
+  #typeDeclaration[0].add quote do:
+  #  typeInfo.typeName = `typeNameStr`
+  #  typeInfo.fieldsLen = `numField`
+  #  typeInfo.methodsLen = `methodsLen`
+  #  typeInfo.membersLen = `membersLen`
+  #  typeInfo.members = cast[ptr MemberInfo](members)
+  #  add(types, typeInfo)
 
   var newproc = ident("new" & $typeName)
   result.add(signalProcs)
   result.add(slotProcs)
   result.add(typeDeclaration)
+  echo typeDeclaration.treeRepr
   #echo result.treeRepr
