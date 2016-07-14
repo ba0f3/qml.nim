@@ -15,5 +15,5 @@ for file in `grep -l Q_''OBJECT *`; do
 	mocfile=`echo $file | awk -F. '{print("moc_"$1".cpp")}'`
 	mochack=`sed -n 's,^ *// MOC HACK: \(.*\),\1,p' $file`
 	moc $file | sed "$mochack" > $mocfile
-	echo "#include \"$subdir/$mocfile\"" >> $ALL
+	echo "#include \"$mocfile\"" >> $ALL
 done

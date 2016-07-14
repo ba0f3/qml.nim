@@ -1,9 +1,9 @@
 import qml
 
-var nimExtSpec: TypeSpec
+var nimExtSpec: GoTypeSpec
 
 nimExtSpec.name = "NimValue"
-
+nimExtSpec.singleton = 0
 run(proc() =
   registerType("NimExtension", 1, 0, nimExtSpec)
 

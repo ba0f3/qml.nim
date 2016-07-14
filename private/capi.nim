@@ -37,7 +37,9 @@ type
   QThread* {.cpp, importc: "QThread_", pure.} = object
   GoValue* {.cpp, importc: "GoValue_", pure.} = object
   GoAddr* {.cpp, pure.} = object
-  GoTypeSpec* {.cpp, importc:"GoTypeSpec_", incompleteStruct.} = object
+  GoTypeSpec* {.cpp, importc: "GoTypeSpec_".} = object
+    name*: cstring
+    singleton*: int
 
   error* = char
 
@@ -168,7 +170,7 @@ proc unpackDataValue*(value: ptr DataValue; result: ptr QVariant) {.cpp.}
 proc newVariantList*(list: ptr DataValue; len: cint): ptr QVariantList {.cpp.}
 proc newListProperty*(`addr`: ptr GoAddr; reflectIndex: pointer; setIndex: pointer): ptr QQmlListProperty {.cpp.}
 proc registerType*(location: cstring; major: cint; minor: cint; name: cstring;
-                  typeInfo: ptr TypeInfo; spec: pointer): cint {.cpp.}
+                  typeInfo: ptr TypeInfo; spec: ptr GoTypeSpec): cint {.cpp.}
 proc registerSingleton*(location: cstring; major: cint; minor: cint; name: cstring;
                        typeInfo: ptr TypeInfo; spec: pointer): cint {.cpp.}
 proc installLogHandler*() {.cpp.}

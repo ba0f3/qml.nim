@@ -1,8 +1,8 @@
 
 import strutils, os, streams, coro
-import private/capi, private/util
+import private/capi#, private/util
 
-export Q_OBJECT
+export Q_OBJECT, GoTypeSpec
 
 type
 
@@ -164,34 +164,32 @@ type
   NimObject* = object
     value: string
   Object* = object
-  TypeSpec* {.exportc.} = object
-    name*: string
-    singleton*: bool
 
 
 var
-  types: seq[TypeSpec] = @[]
+  types: seq[GoTypeSpec] = @[]
 
-proc registerType*(location: string, major, minor: int, spec: TypeSpec) =
-  var spec = spec
+proc registerType*(location: string, major, minor: int, spec: GoTypeSpec) =
+  var localSpec = spec
 
   var typeInfo: TypeInfo
 
-  if spec.singleton:
-    discard registerSingleton(location.cstring, major.cint, minor.cint, spec.name.cstring, addr typeInfo, addr spec)
+  echo "registerType ", cast[int](addr localSpec)
+
+  if spec.singleton == 1:
+    discard registerSingleton(location.cstring, major.cint, minor.cint, spec.name, addr typeInfo, addr localSpec)
   else:
-    discard capi.registerType(location.cstring, major.cint, minor.cint, spec.name.cstring, addr typeInfo, addr spec)
+    discard capi.registerType(location.cstring, major.cint, minor.cint, spec.name, addr typeInfo, addr localSpec)
 
   types.add(spec)
 
-proc registerTypes*(location: string, major, minor: int, types: openArray[TypeSpec]) =
+proc registerTypes*(location: string, major, minor: int, types: openArray[GoTypeSpec]) =
   for t in types:
     registerType(location, major, minor, t)
 
-proc hookGoValueTypeNew*(value: ptr GoValue; specp: ptr GoTypeSpec): ptr GoAddr {.exportc.} =
+proc hookGoValueTypeNew*(value: ptr GoValue, spec: ptr GoTypeSpec): pointer {.exportc.} =
   echo "hookGoValueTypeNew called"
-  let spec: ptr TypeSpec = cast[ptr TypeSpec](specp)
-  echo spec.name
+  echo "type name: ", cast[int](spec)
 
 type
   NimValue* {.importc.} = object

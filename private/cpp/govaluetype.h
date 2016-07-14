@@ -16,6 +16,9 @@ public:
         typeInfo = info;
         typeSpec = spec;
         static_cast<QMetaObject &>(staticMetaObject) = *metaObjectFor(typeInfo);
+
+	qDebug() << "Initializing new value for type:" << (int*)typeSpec;
+
     };
 
     static GoTypeSpec_ *typeSpec;

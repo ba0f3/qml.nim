@@ -30,7 +30,13 @@ typedef void QImage_;
 typedef void QThread_;
 typedef void GoValue_;
 typedef void GoAddr;
-typedef void GoTypeSpec_;
+  //typedef void GoTypeSpec_
+
+typedef struct {
+    char *name;
+    int singleton;
+
+} GoTypeSpec_;
 
 typedef char error;
 error *errorf(const char *format, ...);
