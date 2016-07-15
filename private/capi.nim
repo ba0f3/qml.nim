@@ -1,10 +1,8 @@
 ## # It's surprising that MaximumParamCount is privately defined within qmetaobject.cpp.
 ## # Must fix the objectInvoke function if this is changed.
 ## # This is Qt's MaximuParamCount - 1, as it does not take the result value in account.
-
-#{.passC: "-std=c++0x".}
 {.compile: "all.cpp".}
-{.experimental.}
+
 proc getHeaderPath(): string {.compileTime.} =
   let path = currentSourcePath()
   result = substr(path, 0, path.len - 1 - "/capi.nim".len) & "/cpp"
@@ -47,7 +45,7 @@ proc errorf*(format: cstring): ptr error {.varargs, cpp.}
 proc panicf*(format: cstring) {.varargs, cpp.}
 
 type
-  DataType* = enum
+  DataType* {.cpp.} = enum
     DTUnknown = 0,              ## # Has an unsupported type.
     DTInvalid = 1,              ## # Does not exist or similar.
     DTString = 10, DTBool = 11, DTInt64 = 12, DTInt32 = 13, DTUint64 = 14, DTUint32 = 15,
@@ -71,7 +69,7 @@ type
     data*: array[8, char]
     len*: cint
 
-  MemberInfo* = object
+  MemberInfo* {.cpp, importc: "GoMemberInfo".} = object
     memberName*: cstring       ## # points to memberNames
     memberType*: DataType
     reflectIndex*: cint
@@ -116,9 +114,9 @@ proc currentThread*(): ptr QThread {.cpp.}
 proc appThread*(): ptr QThread {.cpp.}
 proc newQEngine*(parent: ptr QObject = nil): ptr QQmlEngine {.cpp, importc: "newEngine".}
 proc engineRootContext*(engine: ptr QQmlEngine): ptr QQmlContext {.cpp.}
-proc engineSetOwnershipCPP*(engine: ptr QQmlEngine; `object`: ptr QObject) {.cpp.}
-proc engineSetOwnershipJS*(engine: ptr QQmlEngine; `object`: ptr QObject) {.cpp.}
-proc engineSetContextForObject*(engine: ptr QQmlEngine; `object`: ptr QObject) {.cpp.}
+proc engineSetOwnershipCPP*(engine: ptr QQmlEngine; qobject: ptr QObject) {.cpp.}
+proc engineSetOwnershipJS*(engine: ptr QQmlEngine; qobject: ptr QObject) {.cpp.}
+proc engineSetContextForObject*(engine: ptr QQmlEngine; qobject: ptr QObject) {.cpp.}
 proc engineAddImageProvider*(engine: ptr QQmlEngine; providerId: ptr QString;
                             imageFunc: pointer) {.cpp.}
 proc contextGetProperty*(context: ptr QQmlContext; name: ptr QString;
@@ -127,22 +125,22 @@ proc contextSetProperty*(context: ptr QQmlContext; name: ptr QString;
                         value: ptr DataValue) {.cpp.}
 proc contextSetObject*(context: ptr QQmlContext; value: ptr QObject) {.cpp.}
 proc contextSpawn*(context: ptr QQmlContext): ptr QQmlContext {.cpp.}
-proc delObject*(`object`: ptr QObject) {.cpp.}
-proc delObjectLater*(`object`: pointer) {.cpp.}
-proc objectTypeName*(`object`: ptr QObject): cstring {.cpp.}
-proc objectGetProperty*(`object`: ptr QObject; name: cstring; result: ptr DataValue): cint {.cpp.}
-proc objectSetProperty*(`object`: ptr QObject; name: cstring; value: ptr DataValue): ptr error {.cpp.}
-proc objectSetParent*(`object`: ptr QObject; parent: ptr QObject) {.cpp.}
-proc objectInvoke*(`object`: ptr QObject; `method`: cstring; methodLen: cint;
+proc delObject*(qobject: ptr QObject) {.cpp.}
+proc delObjectLater*(qobject: pointer) {.cpp.}
+proc objectTypeName*(qobject: ptr QObject): cstring {.cpp.}
+proc objectGetProperty*(qobject: ptr QObject; name: cstring; result: ptr DataValue): cint {.cpp.}
+proc objectSetProperty*(qobject: ptr QObject; name: cstring; value: ptr DataValue): ptr error {.cpp.}
+proc objectSetParent*(qobject: ptr QObject; parent: ptr QObject) {.cpp.}
+proc objectInvoke*(qobject: ptr QObject; `method`: cstring; methodLen: cint;
                   result: ptr DataValue; params: ptr DataValue; paramsLen: cint): ptr error {.cpp.}
-proc objectFindChild*(`object`: ptr QObject; name: ptr QString; result: ptr DataValue) {.cpp.}
-proc objectContext*(`object`: ptr QObject): ptr QQmlContext {.cpp.}
-proc objectIsComponent*(`object`: ptr QObject): cint {.cpp.}
-proc objectIsWindow*(`object`: ptr QObject): cint {.cpp.}
-proc objectIsView*(`object`: ptr QObject): cint {.cpp.}
-proc objectConnect*(`object`: ptr QObject; signal: cstring; signalLen: cint;
+proc objectFindChild*(qobject: ptr QObject; name: ptr QString; result: ptr DataValue) {.cpp.}
+proc objectContext*(qobject: ptr QObject): ptr QQmlContext {.cpp.}
+proc objectIsComponent*(qobject: ptr QObject): cint {.cpp.}
+proc objectIsWindow*(qobject: ptr QObject): cint {.cpp.}
+proc objectIsView*(qobject: ptr QObject): cint {.cpp.}
+proc objectConnect*(qobject: ptr QObject; signal: cstring; signalLen: cint;
                    engine: ptr QQmlEngine; `func`: pointer; argsLen: cint): ptr error {.cpp.}
-proc objectGoAddr*(`object`: ptr QObject; `addr`: ptr ptr GoAddr): ptr error {.cpp.}
+proc objectGoAddr*(qobject: ptr QObject; goaddr: ptr ptr GoAddr): ptr error {.cpp.}
 proc newComponent*(engine: ptr QQmlEngine; parent: ptr QObject): ptr QQmlComponent {.cpp.}
 proc componentLoadURL*(component: ptr QQmlComponent; url: cstring; urlLen: cint) {.cpp.}
 proc componentSetData*(component: ptr QQmlComponent; data: cstring; dataLen: cint;
@@ -163,56 +161,16 @@ proc imageBits*(image: ptr QImage): ptr cuchar {.cpp.}
 proc imageConstBits*(image: ptr QImage): ptr cuchar {.cpp.}
 proc newString*(data: cstring; len: cint): ptr QString {.cpp.}
 proc delString*(s: ptr QString) {.cpp.}
-proc newGoValue*(`addr`: ptr GoAddr; typeInfo: ptr TypeInfo; parent: ptr QObject): ptr GoValue {.cpp.}
+proc newGoValue*(goaddr: ptr GoAddr; typeInfo: ptr TypeInfo; parent: ptr QObject): ptr GoValue {.cpp.}
 proc goValueActivate*(value: ptr GoValue; typeInfo: ptr TypeInfo; addrOffset: cint) {.cpp.}
 proc packDataValue*(`var`: ptr QVariant; result: ptr DataValue) {.cpp.}
 proc unpackDataValue*(value: ptr DataValue; result: ptr QVariant) {.cpp.}
 proc newVariantList*(list: ptr DataValue; len: cint): ptr QVariantList {.cpp.}
-proc newListProperty*(`addr`: ptr GoAddr; reflectIndex: pointer; setIndex: pointer): ptr QQmlListProperty {.cpp.}
+proc newListProperty*(goaddr: ptr GoAddr; reflectIndex: pointer; setIndex: pointer): ptr QQmlListProperty {.cpp.}
 proc registerType*(location: cstring; major: cint; minor: cint; name: cstring;
                   typeInfo: ptr TypeInfo; spec: ptr TypeSpec): cint {.cpp.}
 proc registerSingleton*(location: cstring; major: cint; minor: cint; name: cstring;
                        typeInfo: ptr TypeInfo; spec: ptr TypeSpec): cint {.cpp.}
 proc installLogHandler*() {.cpp.}
-proc hookIdleTimer*() {.exportc.} =
-  echo "hookIdleTimer called"
-proc hookLogHandler*(message: ptr LogMessage) {.exportc.} =
-  echo "hookLogHander called"
-proc hookGoValueReadField*(engine: ptr QQmlEngine; `addr`: ptr GoAddr;
-                          memberIndex: cint; getIndex: cint; setIndex: cint;
-                          result: ptr DataValue) {.exportc.} =
-  echo "hookGoValueReadField called"
-proc hookGoValueWriteField*(engine: ptr QQmlEngine; `addr`: ptr GoAddr;
-                           memberIndex: cint; setIndex: cint; assign: ptr DataValue) {.exportc.} =
-  echo "hookGoValueWriteField called"
-proc hookGoValueCallMethod*(engine: ptr QQmlEngine; `addr`: ptr GoAddr;
-                           memberIndex: cint; result: ptr DataValue)  {.exportc.} =
-  echo "hookGoValueCallMethod called"
-proc hookGoValueDestroyed*(engine: ptr QQmlEngine; `addr`: ptr GoAddr) {.exportc.} =
-  echo "hookGoValueDestroyed called"
-proc hookGoValuePaint*(engine: ptr QQmlEngine; `addr`: ptr GoAddr;
-                      reflextIndex: intptr_t) {.exportc.} =
-  echo "hookGoValuePaint called"
-proc hookRequestImage*(imageFunc: pointer; id: cstring; idLen: cint; width: cint;
-                      height: cint): ptr QImage {.exportc.} =
-  echo "hookRequestImage called"
-proc hookSignalCall*(engine: ptr QQmlEngine; `func`: pointer; params: ptr DataValue) {.exportc.} =
-  echo "hookSignalCall called"
-proc hookSignalDisconnect*(`func`: pointer) {.exportc.} =
-  echo "hookSignalDisconnect called"
-proc hookPanic*(message: cstring) {.exportc.} =
-  echo "hookPanic called"
-proc hookListPropertyCount*(`addr`: ptr GoAddr; reflectIndex: intptr_t;
-                           setIndex: intptr_t): cint {.exportc.} =
-  echo "hookListPropertyCount called"
-proc hookListPropertyAt*(`addr`: ptr GoAddr; reflectIndex: intptr_t;
-                        setIndex: intptr_t; i: cint): ptr QObject {.exportc.} =
-  echo "hookListPropertyAt called"
-proc hookListPropertyAppend*(`addr`: ptr GoAddr; reflectIndex: intptr_t;
-                            setIndex: intptr_t; obj: ptr QObject) {.exportc.} =
-  echo "hookListPropertyAppend called"
-proc hookListPropertyClear*(`addr`: ptr GoAddr; reflectIndex: intptr_t;
-                           setIndex: intptr_t) {.exportc.} =
-  echo "hookListPropertyClear called"
 proc registerResourceData*(version: cint; tree: cstring; name: cstring; data: cstring) {.cpp.}
 proc unregisterResourceData*(version: cint; tree: cstring; name: cstring; data: cstring) {.cpp.}

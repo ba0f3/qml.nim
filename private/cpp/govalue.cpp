@@ -181,7 +181,7 @@ QMetaObject *metaObjectFor(GoTypeInfo *typeInfo)
     mob.setFlags(QMetaObjectBuilder::DynamicMetaObject);
 
     GoMemberInfo *memberInfo;
-
+    qDebug() << "GoValue.metaObjectFor" << typeInfo->fields;
     memberInfo = typeInfo->fields;
     int relativePropIndex = mob.propertyCount();
     for (int i = 0; i < typeInfo->fieldsLen; i++) {

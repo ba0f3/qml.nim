@@ -1,8 +1,8 @@
 
 import strutils, os, streams, coro
-import private/capi, private/util
+import private/bridge, private/capi, private/datatype
 
-export capi, Q_OBJECT, addType, getType
+export capi, Q_OBJECT, addType, getType, datatype
 
 type
   Common* = ref object of RootObj
@@ -61,8 +61,6 @@ type
     prev: ptr ValueFold
     next : ptr ValueFold
     owner: uint8
-
-
 
 proc newEngine*(): Engine =
   result = new(Engine)
@@ -159,12 +157,6 @@ proc hookWindowHidden*(cptr: ptr QObject) {.exportc.} =
   if waitingWindows <= 0:
     applicationExit()
 
-type
-  NimObject* = object
-    value: string
-  Object* = object
-
-
 var
   types: seq[TypeSpec] = @[]
 
@@ -184,13 +176,3 @@ proc registerType*(location: string, major, minor: int, spec: TypeSpec) =
 proc registerTypes*(location: string, major, minor: int, types: openArray[TypeSpec]) =
   for t in types:
     registerType(location, major, minor, t)
-
-
-
-proc hookGoValueTypeNew*(value: ptr GoValue, spec: ptr TypeSpec): ptr GoAddr {.exportc.} =
-  echo "hookGoValueTypeNew called"
-  echo "type name: ", spec.name
-  echo "type singleton: ", spec.singleton
-
-type
-  NimValue* {.importc.} = object

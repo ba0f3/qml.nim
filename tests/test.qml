@@ -8,14 +8,16 @@ Rectangle {
     color: "lightgray"
 
     Student {
+    	id: model
 	name: "John"
+	age: 30
     }
 
 
 
     Text {
         id: helloText
-        text: "Hello world!"
+        text: "Hello " + model.name
         y: 30
         anchors.horizontalCenter: page.horizontalCenter
         font.pointSize: 24; font.bold: true
