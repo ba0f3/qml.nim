@@ -1,8 +1,8 @@
 
 import strutils, os, streams, coro
-import private/capi#, private/util
+import private/capi, private/util
 
-export Q_OBJECT, GoTypeSpec
+export Q_OBJECT, TypeSpec
 
 type
 
@@ -167,9 +167,9 @@ type
 
 
 var
-  types: seq[GoTypeSpec] = @[]
+  types: seq[TypeSpec] = @[]
 
-proc registerType*(location: string, major, minor: int, spec: GoTypeSpec) =
+proc registerType*(location: string, major, minor: int, spec: TypeSpec) =
   var localSpec = spec
 
   var typeInfo: TypeInfo
@@ -183,13 +183,13 @@ proc registerType*(location: string, major, minor: int, spec: GoTypeSpec) =
 
   types.add(spec)
 
-proc registerTypes*(location: string, major, minor: int, types: openArray[GoTypeSpec]) =
+proc registerTypes*(location: string, major, minor: int, types: openArray[TypeSpec]) =
   for t in types:
     registerType(location, major, minor, t)
 
 
 
-proc hookGoValueTypeNew*(value: ptr GoValue, spec: ptr GoTypeSpec): ptr GoAddr {.exportc.} =
+proc hookGoValueTypeNew*(value: ptr GoValue, spec: ptr TypeSpec): ptr GoAddr {.exportc.} =
   echo "hookGoValueTypeNew called"
   echo "type name: ", spec.name
   echo "type singleton: ", spec.singleton

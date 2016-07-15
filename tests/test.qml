@@ -7,7 +7,8 @@ Rectangle {
     width: 480; height: 320
     color: "lightgray"
 
-    GoValue {
+    Student {
+	name: "John"
     }
 
 

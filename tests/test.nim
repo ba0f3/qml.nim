@@ -1,9 +1,14 @@
 import qml
 
-var nimExtSpec: GoTypeSpec
+Q_OBJECT Student:
+    var name: string
+    var age: int
 
-nimExtSpec.name = "GoValue"
-nimExtSpec.singleton = 10000
+
+
+var nimExtSpec: TypeSpec
+
+nimExtSpec.name = "Student"
 run(proc() =
   registerType("NimExtension", 1, 0, nimExtSpec)
 

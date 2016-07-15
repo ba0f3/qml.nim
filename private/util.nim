@@ -1,58 +1,4 @@
-import macros, strutils
-
-type
-  QMetaObject* = object
-
-type
-  DataType* = enum
-    DTUnknown = 0,              ## # Has an unsupported type.
-    DTInvalid = 1,              ## # Does not exist or similar.
-    DTString = 10, DTBool = 11, DTInt64 = 12, DTInt32 = 13, DTUint64 = 14, DTUint32 = 15,
-    DTUintptr = 16, DTFloat64 = 17, DTFloat32 = 18, DTColor = 19, DTGoAddr = 100,
-    DTObject = 101, DTValueMap = 102, DTValueList = 103, DTVariantList = 104, DTListProperty = 105, ##
-                                                                                     ## #
-                                                                                     ## Used
-                                                                                     ## in
-                                                                                     ## type
-                                                                                     ## information,
-                                                                                     ## not
-                                                                                     ## in
-                                                                                     ## an
-                                                                                     ## actual
-                                                                                     ## data
-                                                                                     ## value.
-    DTAny = 201,                ## # Can hold any of the above types.
-    DTMethod = 202
-  DataValue* {.importc.} = object
-    dataType*: DataType
-    data*: array[8, char]
-    len*: cint
-
-  MemberInfo* = object
-    memberName*: cstring       ## # points to memberNames
-    memberType*: DataType
-    reflectIndex*: cint
-    reflectGetIndex*: cint
-    reflectSetIndex*: cint
-    metaIndex*: cint
-    addrOffset*: cint
-    methodSignature*: cstring
-    resultSignature*: cstring
-    numIn*: cint
-    numOut*: cint
-
-  TypeInfo* = object
-    typeName*: cstring
-    fields*: ptr MemberInfo
-    methods*: ptr MemberInfo
-    members*: ptr MemberInfo  ## # fields + methods
-    paint*: ptr MemberInfo    ## # in methods too
-    fieldsLen*: cint
-    methodsLen*: cint
-    membersLen*: cint
-    memberNames*: cstring
-    metaObject*: ptr QMetaObject
-
+import macros, strutils, capi
 
 const
   FIELD_PREFIX = "m"
@@ -163,33 +109,35 @@ macro Q_OBJECT*(head: expr, body: stmt): stmt {.immediate.} =
     methodsLen = numField * 2 # setter + getter + sinal?
     membersLen = numField * 3 # field + setter * getter
 
-  typeDeclaration.add quote do:
+  var stm = """
     var
       typeInfo: TypeInfo
       memberInfoSize = sizeof(MemberInfo)
-      membersSize = memberInfoSize * `membersLen`
+      membersSize = memberInfoSize * $1
       members = cast[uint](alloc(membersSize))
 
       membersi = 0
       memberInfo: ptr MemberInfo
+""" % [$membersLen]
 
   for node in body.children:
     if node.kind == nnkVarSection:
+      stm.add """
 
-        memberDeclaration =  quote do:
-          memberInfo = cast[ptr MemberInfo](members + uint(memberInfoSize * membersi))
-          memberInfo.memberName = `fieldNameStr`
-          inc(membersi)
+    memberInfo = cast[ptr MemberInfo](members + uint(memberInfoSize * membersi))
+    memberInfo.memberName = $1
+    inc(membersi)
+""" % [fieldNameStr]
+  echo stm
+  typeDeclaration = parseStmt(stm)
 
-        typeDeclaration[0].add memberDeclaration[0]
-
-  #typeDeclaration[0].add quote do:
-  #  typeInfo.typeName = `typeNameStr`
-  #  typeInfo.fieldsLen = `numField`
-  #  typeInfo.methodsLen = `methodsLen`
-  #  typeInfo.membersLen = `membersLen`
-  #  typeInfo.members = cast[ptr MemberInfo](members)
-  #  add(types, typeInfo)
+  typeDeclaration[0].add quote do:
+    typeInfo.typeName = `typeNameStr`
+    typeInfo.fieldsLen = `numField`
+    typeInfo.methodsLen = `methodsLen`
+    typeInfo.membersLen = `membersLen`
+    typeInfo.members = cast[ptr MemberInfo](members)
+    add(types, typeInfo)
 
   var newproc = ident("new" & $typeName)
   result.add(signalProcs)
