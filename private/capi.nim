@@ -4,7 +4,7 @@
 
 #{.passC: "-std=c++0x".}
 {.compile: "all.cpp".}
-
+{.experimental.}
 proc getHeaderPath(): string {.compileTime.} =
   let path = currentSourcePath()
   result = substr(path, 0, path.len - 1 - "/capi.nim".len) & "/cpp"

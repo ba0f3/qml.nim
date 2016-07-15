@@ -187,9 +187,12 @@ proc registerTypes*(location: string, major, minor: int, types: openArray[GoType
   for t in types:
     registerType(location, major, minor, t)
 
-proc hookGoValueTypeNew*(value: ptr GoValue, spec: ptr GoTypeSpec): pointer {.exportc.} =
+
+
+proc hookGoValueTypeNew*(value: ptr GoValue, spec: ptr GoTypeSpec): ptr GoAddr {.exportc.} =
   echo "hookGoValueTypeNew called"
-  echo "type name: ", cast[int](spec)
+  echo "type name: ", spec.name
+  echo "type singleton: ", spec.singleton
 
 type
   NimValue* {.importc.} = object

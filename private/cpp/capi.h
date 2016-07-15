@@ -33,7 +33,7 @@ typedef void GoAddr;
   //typedef void GoTypeSpec_
 
 typedef struct {
-    char *name;
+  char *name;
     int singleton;
 
 } GoTypeSpec_;

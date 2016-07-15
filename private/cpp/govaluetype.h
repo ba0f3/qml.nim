@@ -8,21 +8,22 @@ class GoValueType : public GoValue
 {
 public:
 
-    GoValueType()
-        : GoValue(hookGoValueTypeNew(this, typeSpec), typeInfo, 0) {};
+ GoValueType()
+   : GoValue(hookGoValueTypeNew(this, &typeSpec), &typeInfo, 0) {};
 
     static void init(GoTypeInfo *info, GoTypeSpec_ *spec)
     {
-        typeInfo = info;
-        typeSpec = spec;
-        static_cast<QMetaObject &>(staticMetaObject) = *metaObjectFor(typeInfo);
+        memcpy(&typeInfo, info, sizeof(GoTypeInfo));
+        memcpy(&typeSpec, spec, sizeof(GoTypeSpec_));
+        static_cast<QMetaObject &>(staticMetaObject) = *metaObjectFor(&typeInfo);
 
-	qDebug() << "Initializing new value for type:" << (int*)typeSpec;
+	qDebug() << "Initializing new value for type:" << typeSpec.name;
+
 
     };
 
-    static GoTypeSpec_ *typeSpec;
-    static GoTypeInfo *typeInfo;
+    static GoTypeSpec_ typeSpec;
+    static GoTypeInfo typeInfo;
     static QMetaObject staticMetaObject;
 };
 
@@ -32,17 +33,17 @@ class GoPaintedValueType : public GoPaintedValue
 public:
 
     GoPaintedValueType()
-        : GoPaintedValue(hookGoValueTypeNew(this, typeSpec), typeInfo, 0) {};
+        : GoPaintedValue(hookGoValueTypeNew(this, &typeSpec), &typeInfo, 0) {};
 
     static void init(GoTypeInfo *info, GoTypeSpec_ *spec)
     {
-        typeInfo = info;
-        typeSpec = spec;
-        static_cast<QMetaObject &>(staticMetaObject) = *metaObjectFor(typeInfo);
+        memcpy(&typeInfo, info, sizeof(GoTypeInfo));
+        memcpy(&typeSpec, spec, sizeof(GoTypeSpec_));
+        static_cast<QMetaObject &>(staticMetaObject) = *metaObjectFor(&typeInfo);
     };
 
-    static GoTypeSpec_ *typeSpec;
-    static GoTypeInfo *typeInfo;
+    static GoTypeSpec_ typeSpec;
+    static GoTypeInfo typeInfo;
     static QMetaObject staticMetaObject;
 };
 

@@ -869,9 +869,13 @@ void registerResourceData(int version, char *tree, char *name, char *data)
     qRegisterResourceData(version, (unsigned char*)tree, (unsigned char*)name, (unsigned char*)data);
 }
 
-void unregisterResourceData(int version, char *tree, char *name, char *data)
+/*
+GoAddr *hookGoValueTypeNew(GoValue_ *value, GoTypeSpec_ *spec)
 {
-    qUnregisterResourceData(version, (unsigned char*)tree, (unsigned char*)name, (unsigned char*)data);
+  qDebug() << "hookGoValueTypeNew:" << (int*)spec;
+  printf("name: %s\n", spec->name);
+  printf("singleton: %d\n", spec->singleton);
+  return 0;
 }
-
+*/
 // vim:ts=4:sw=4:et:ft=cpp

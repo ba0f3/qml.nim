@@ -2,13 +2,14 @@
 
 #define DEFINE_GOVALUETYPE(N) \
     template<> QMetaObject GoValueType<N>::staticMetaObject = QMetaObject(); \
-    template<> GoTypeInfo *GoValueType<N>::typeInfo = 0; \
-    template<> GoTypeSpec_ *GoValueType<N>::typeSpec = 0;
+    template<> GoTypeInfo GoValueType<N>::typeInfo = {}; \
+    template<> GoTypeSpec_ GoValueType<N>::typeSpec = {};
+
 
 #define DEFINE_GOPAINTEDVALUETYPE(N) \
     template<> QMetaObject GoPaintedValueType<N>::staticMetaObject = QMetaObject(); \
-    template<> GoTypeInfo *GoPaintedValueType<N>::typeInfo = 0; \
-    template<> GoTypeSpec_ *GoPaintedValueType<N>::typeSpec = 0;
+    template<> GoTypeInfo GoPaintedValueType<N>::typeInfo = {}; \
+    template<> GoTypeSpec_ GoPaintedValueType<N>::typeSpec = {};
 
 DEFINE_GOVALUETYPE(1)
 DEFINE_GOVALUETYPE(2)
@@ -181,7 +182,7 @@ int registerSingleton(char *location, int major, int minor, char *name, GoTypeIn
 int registerType(char *location, int major, int minor, char *name, GoTypeInfo *info, GoTypeSpec_ *spec)
 {
   qDebug() << "registerType:" << spec->name;
-    if (!info->paint) {
+  if (!info->paint) {
         switch (++goValueTypeN) {
         GOVALUETYPE_CASE(1)
         GOVALUETYPE_CASE(2)

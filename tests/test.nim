@@ -2,8 +2,8 @@ import qml
 
 var nimExtSpec: GoTypeSpec
 
-nimExtSpec.name = "NimValue"
-nimExtSpec.singleton = 0
+nimExtSpec.name = "GoValue"
+nimExtSpec.singleton = 10000
 run(proc() =
   registerType("NimExtension", 1, 0, nimExtSpec)
 

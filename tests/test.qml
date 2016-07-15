@@ -7,7 +7,7 @@ Rectangle {
     width: 480; height: 320
     color: "lightgray"
 
-    NimValue {
+    GoValue {
     }
 
 
