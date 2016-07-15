@@ -114,7 +114,7 @@ proc idleTimerInit*(guiIdleRun: ptr int32) {.cpp.}
 proc idleTimerStart*() {.cpp.}
 proc currentThread*(): ptr QThread {.cpp.}
 proc appThread*(): ptr QThread {.cpp.}
-proc newEngine*(parent: ptr QObject = nil): ptr QQmlEngine {.cpp.}
+proc newQEngine*(parent: ptr QObject = nil): ptr QQmlEngine {.cpp, importc: "newEngine".}
 proc engineRootContext*(engine: ptr QQmlEngine): ptr QQmlContext {.cpp.}
 proc engineSetOwnershipCPP*(engine: ptr QQmlEngine; `object`: ptr QObject) {.cpp.}
 proc engineSetOwnershipJS*(engine: ptr QQmlEngine; `object`: ptr QObject) {.cpp.}
@@ -172,7 +172,7 @@ proc newListProperty*(`addr`: ptr GoAddr; reflectIndex: pointer; setIndex: point
 proc registerType*(location: cstring; major: cint; minor: cint; name: cstring;
                   typeInfo: ptr TypeInfo; spec: ptr TypeSpec): cint {.cpp.}
 proc registerSingleton*(location: cstring; major: cint; minor: cint; name: cstring;
-                       typeInfo: ptr TypeInfo; spec: pointer): cint {.cpp.}
+                       typeInfo: ptr TypeInfo; spec: ptr TypeSpec): cint {.cpp.}
 proc installLogHandler*() {.cpp.}
 proc hookIdleTimer*() {.exportc.} =
   echo "hookIdleTimer called"

@@ -2,10 +2,9 @@
 import strutils, os, streams, coro
 import private/capi, private/util
 
-export Q_OBJECT, TypeSpec
+export capi, Q_OBJECT, addType, getType
 
 type
-
   Common* = ref object of RootObj
     cptr: pointer
     engine: ptr Engine
@@ -67,7 +66,7 @@ type
 
 proc newEngine*(): Engine =
   result = new(Engine)
-  result.cptr = capi.newEngine()
+  result.cptr = newQEngine()
   result.engine = addr result
 
 proc destroy*(e: var Engine) =
@@ -170,16 +169,15 @@ var
   types: seq[TypeSpec] = @[]
 
 proc registerType*(location: string, major, minor: int, spec: TypeSpec) =
-  var localSpec = spec
+  var spec = spec
 
-  var typeInfo: TypeInfo
-
-  echo "registerType ", cast[int](addr localSpec)
+  var typeInfo = getType($spec.name)
+  echo "registerType ", cast[int](addr spec)
 
   if spec.singleton == 1:
-    discard registerSingleton(location.cstring, major.cint, minor.cint, spec.name, addr typeInfo, addr localSpec)
+    discard registerSingleton(location.cstring, major.cint, minor.cint, spec.name, addr typeInfo, addr spec)
   else:
-    discard capi.registerType(location.cstring, major.cint, minor.cint, spec.name, addr typeInfo, addr localSpec)
+    discard capi.registerType(location.cstring, major.cint, minor.cint, spec.name, addr typeInfo, addr spec)
 
   types.add(spec)
 

@@ -13,8 +13,10 @@ public:
 
     static void init(GoTypeInfo *info, GoTypeSpec_ *spec)
     {
+
         memcpy(&typeInfo, info, sizeof(GoTypeInfo));
         memcpy(&typeSpec, spec, sizeof(GoTypeSpec_));
+        qDebug() << "GoValueType.init ERROR HEREEEEEEEEEEEEEEEEEE";
         static_cast<QMetaObject &>(staticMetaObject) = *metaObjectFor(&typeInfo);
 
 	qDebug() << "Initializing new value for type:" << typeSpec.name;

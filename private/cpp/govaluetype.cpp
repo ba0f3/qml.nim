@@ -181,7 +181,8 @@ int registerSingleton(char *location, int major, int minor, char *name, GoTypeIn
 
 int registerType(char *location, int major, int minor, char *name, GoTypeInfo *info, GoTypeSpec_ *spec)
 {
-  qDebug() << "registerType:" << spec->name;
+  qDebug() << "govaluetype.registerType:" << spec->name << info->typeName;
+
   if (!info->paint) {
         switch (++goValueTypeN) {
         GOVALUETYPE_CASE(1)

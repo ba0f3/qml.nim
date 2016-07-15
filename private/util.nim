@@ -1,10 +1,18 @@
-import macros, strutils, capi
+import macros, strutils, tables, capi
 
 const
   FIELD_PREFIX = "m"
 
 var
-  types*: seq[TypeInfo] = @[]
+  types = newTable[string, TypeInfo]()
+
+proc addType*(name: string, typeInfo: TypeInfo) =
+  types[name] = typeInfo
+
+
+proc getType*(name: string): TypeInfo =
+  types[name]
+
 
 macro Q_OBJECT*(head: expr, body: stmt): stmt {.immediate.} =
   var typeName, baseName: NimNode
@@ -110,38 +118,40 @@ macro Q_OBJECT*(head: expr, body: stmt): stmt {.immediate.} =
     membersLen = numField * 3 # field + setter * getter
 
   var stm = """
-    var
-      typeInfo: TypeInfo
-      memberInfoSize = sizeof(MemberInfo)
-      membersSize = memberInfoSize * $1
-      members = cast[uint](alloc(membersSize))
+var
+  typeInfo: TypeInfo
+  memberInfoSize = sizeof(MemberInfo)
+  membersSize = memberInfoSize * $1
+  members = cast[uint](alloc(membersSize))
 
-      membersi = 0
-      memberInfo: ptr MemberInfo
+  membersi = 0
+  memberInfo: ptr MemberInfo
 """ % [$membersLen]
 
   for node in body.children:
     if node.kind == nnkVarSection:
-      stm.add """
+      for n in node.children:
+        fieldNameStr = $n[0]
+        stm.add """
 
-    memberInfo = cast[ptr MemberInfo](members + uint(memberInfoSize * membersi))
-    memberInfo.memberName = $1
-    inc(membersi)
+memberInfo = cast[ptr MemberInfo](members + uint(memberInfoSize * membersi))
+memberInfo.memberName = "$1"
+inc(membersi)
 """ % [fieldNameStr]
-  echo stm
+  stm.add """
+typeInfo.typeName = "$1"
+typeInfo.fieldsLen = $2
+typeInfo.methodsLen = $3
+typeInfo.membersLen = $4
+typeInfo.members = cast[ptr MemberInfo](members)
+addType("$1", typeInfo)
+""" % [typeNameStr, $numField, $methodsLen, $membersLen]
+
+#  echo stm
+
   typeDeclaration = parseStmt(stm)
-
-  typeDeclaration[0].add quote do:
-    typeInfo.typeName = `typeNameStr`
-    typeInfo.fieldsLen = `numField`
-    typeInfo.methodsLen = `methodsLen`
-    typeInfo.membersLen = `membersLen`
-    typeInfo.members = cast[ptr MemberInfo](members)
-    add(types, typeInfo)
-
   var newproc = ident("new" & $typeName)
   result.add(signalProcs)
   result.add(slotProcs)
   result.add(typeDeclaration)
-  echo typeDeclaration.treeRepr
   #echo result.treeRepr
