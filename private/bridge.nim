@@ -1,10 +1,10 @@
-import capi
+import capi, datatype, util
 
 proc hookGoValueTypeNew*(value: ptr GoValue, spec: ptr TypeSpec): ptr GoAddr {.exportc.} =
-  echo "hookGoValueTypeNew called"
-  echo "type name: ", spec.name
-  echo "type singleton: ", spec.singleton
-
+  var p: pointer
+  getConstructor($spec.name)(p)
+  echo cast[int](p)
+  cast[ptr GoAddr](p)
 
 proc hookIdleTimer*() {.exportc.} =
   echo "hookIdleTimer called"
@@ -16,6 +16,7 @@ proc hookGoValueReadField*(engine: ptr QQmlEngine; goaddr: ptr GoAddr;
                           memberIndex: cint; getIndex: cint; setIndex: cint;
                           result: ptr DataValue) {.exportc.} =
   echo "hookGoValueReadField called, memberIndex: ", memberIndex, " getIndex: ", getIndex, " setIndex: ", setIndex
+  echo cast[int](goaddr)
 
 proc hookGoValueWriteField*(engine: ptr QQmlEngine; goaddr: ptr GoAddr;
                            memberIndex: cint; setIndex: cint; assign: ptr DataValue) {.exportc.} =

@@ -30,7 +30,6 @@ typedef void QImage_;
 typedef void QThread_;
 typedef void GoValue_;
 typedef void GoAddr;
-  //typedef void GoTypeSpec_
 
 typedef struct {
   char *name;

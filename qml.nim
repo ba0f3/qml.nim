@@ -1,8 +1,8 @@
 
 import strutils, os, streams, coro
-import private/bridge, private/capi, private/datatype
+import private/bridge, private/capi, private/datatype, private/util
 
-export capi, Q_OBJECT, addType, getType, datatype
+export capi, Q_OBJECT, addType, getType, datatype, util
 
 type
   Common* = ref object of RootObj

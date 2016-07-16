@@ -1,36 +1,14 @@
 import macros, strutils, tables, capi
 
-proc dataTypeOf*(typ: typedesc): DataType =
-  when typ is string:
-    DTString
-  elif typ is bool:
-    DTBool
-  elif typ is int:
-    when sizeof(int) == 8:
-      DTInt64
-    else:
-      DTInt32
-  elif typ is int64:
-    DTInt64
-  elif typ is int32:
-    DTInt32
-  elif typ is float32:
-    DTDloat32
-  elif typ is float64:
-    DTFload64
-  elif typ is auto or typ is any:
-    DTAny
-  elif typ is seq or typ is array:
-    DTListProperty
-  else:
-    DTObject
-
 const
   FIELD_PREFIX = "m"
 
+type
+  NimObject* = ref object of RootObj
+
 var
   types = newTable[string, TypeInfo]()
-  constructors = newTable[typedesc
+  constructors = newTable[string, proc(retval: var pointer, args: varargs[pointer])]()
 
 proc addType*(name: string, typeInfo: TypeInfo) =
   types[name] = typeInfo
@@ -39,6 +17,11 @@ proc addType*(name: string, typeInfo: TypeInfo) =
 proc getType*(name: string): TypeInfo =
   types[name]
 
+proc addConstructor*(name: string, f: proc(retval: var pointer, args: varargs[pointer])) =
+  constructors.add(name, f)
+
+proc getConstructor*(name: string): proc(retval: var pointer, args: varargs[pointer]) =
+  constructors[name]
 
 macro Q_OBJECT*(head: expr, body: stmt): stmt {.immediate.} =
   var typeName, baseName: NimNode
@@ -52,6 +35,9 @@ macro Q_OBJECT*(head: expr, body: stmt): stmt {.immediate.} =
   else:
     quit "Invalid node: " & head.lispRepr
 
+  if not baseName.isNil:
+    raise newException(SystemError, "inheritance for NimObject is not supported")
+
   result = newStmtList()
 
   var
@@ -62,6 +48,7 @@ macro Q_OBJECT*(head: expr, body: stmt): stmt {.immediate.} =
     changed: NimNode
     isArray: bool
     typeNameStr = $typeName
+    constructorNameStr = "new" & typeNameStr
 
     recList = newNimNode(nnkRecList)
     slotProcs = newStmtList()
@@ -73,12 +60,15 @@ macro Q_OBJECT*(head: expr, body: stmt): stmt {.immediate.} =
 
   for node in body.children:
     case node.kind:
+      of nnkMethodDef, nnkProcDef:
+        result.add(node)
+
       of nnkVarSection:
         inc(numField)
       else:
         discard
 
-  var
+  let
     methodsLen = numField * 2 # setter + getter + sinal?
     membersLen = numField * 3 # field + setter * getter
 
@@ -96,11 +86,14 @@ var
   for node in body.children:
     case node.kind:
     of nnkMethodDef, nnkProcDef:
-        # inject `this: T` into the arguments
-        let p = copyNimTree(node.params)
-        p.insert(1, newIdentDefs(ident"this", typeName))
-        node.params = p
-        result.add(node)
+      if startsWith($node[0], constructorNameStr):
+        stm.add("addConstructor(\"" & typeNameStr & "\", " & constructorNameStr & ")\n")
+      ## inject `this: T` into the arguments
+      #let p = copyNimTree(node.params)
+      #p.insert(1, newIdentDefs(ident"self", typeName))
+      #node.params = p
+      #result.add(node)
+
     of nnkVarSection:
       # variables get turned into fields of the type.
       for n in node.children:
@@ -178,19 +171,40 @@ addType("$1", typeInfo)
   #echo stm
 
   result.insert(0,
-    if baseName == nil:
       quote do:
-        type `typeName` = ref object of RootObj
-    else:
-      quote do:
-        type `typeName` = ref object of `baseName`
+        type `typeName` = ref object of NimObject
   )
 
   result[0][0][0][2][0][2] = recList
 
   typeDeclaration = parseStmt(stm)
-  var newproc = ident("new" & $typeName)
-  result.add(signalProcs)
-  result.add(slotProcs)
+  #result.add(signalProcs)
+  #result.add(slotProcs)
   result.add(typeDeclaration)
   #echo result.treeRepr
+
+
+proc dataTypeOf*(typ: typedesc): DataType =
+  when typ is string:
+    DTString
+  elif typ is bool:
+    DTBool
+  elif typ is int:
+    when sizeof(int) == 8:
+      DTInt64
+    else:
+      DTInt32
+  elif typ is int64:
+    DTInt64
+  elif typ is int32:
+    DTInt32
+  elif typ is float32:
+    DTDloat32
+  elif typ is float64:
+    DTFload64
+  elif typ is auto or typ is any:
+    DTAny
+  elif typ is seq or typ is array:
+    DTListProperty
+  else:
+    DTObject
