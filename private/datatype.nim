@@ -9,19 +9,31 @@ type
 var
   types = newTable[string, TypeInfo]()
   constructors = newTable[string, proc(retval: var pointer, args: varargs[pointer])]()
+  pointerToTypeMap = newTable[pointer, string]()
 
 proc addType*(name: string, typeInfo: TypeInfo) =
   types[name] = typeInfo
 
-
 proc getType*(name: string): TypeInfo =
   types[name]
+
+proc getMemberInfo*(typeInfo: TypeInfo, memberIndex: int): ptr MemberInfo =
+  cast[ptr MemberInfo](cast[uint](typeInfo.members) + uint(sizeof(MemberInfo) * memberIndex))
 
 proc addConstructor*(name: string, f: proc(retval: var pointer, args: varargs[pointer])) =
   constructors.add(name, f)
 
 proc getConstructor*(name: string): proc(retval: var pointer, args: varargs[pointer]) =
   constructors[name]
+
+proc trackPointer*(p: pointer, typ: string) =
+  pointerToTypeMap.add(p, typ)
+
+proc untrackPointer*(p: pointer) =
+  pointerToTypeMap.del(p)
+
+proc getPointerType*(p: pointer): string =
+  pointerToTypeMap[p]
 
 macro Q_OBJECT*(head: expr, body: stmt): stmt {.immediate.} =
   var typeName, baseName: NimNode

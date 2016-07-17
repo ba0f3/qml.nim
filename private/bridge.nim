@@ -1,9 +1,9 @@
 import capi, datatype, util
 
-proc hookGoValueTypeNew*(value: ptr GoValue, spec: ptr TypeSpec): ptr GoAddr {.exportc.} =
+proc hookGoValueTypeNew*(cvalue: ptr GoValue, spec: ptr TypeSpec): ptr GoAddr {.exportc.} =
   var p: pointer
   getConstructor($spec.name)(p)
-  echo cast[int](p)
+  trackPointer(p, $spec.name)
   cast[ptr GoAddr](p)
 
 proc hookIdleTimer*() {.exportc.} =
@@ -12,24 +12,37 @@ proc hookIdleTimer*() {.exportc.} =
 proc hookLogHandler*(message: ptr LogMessage) {.exportc.} =
   echo "hookLogHander called"
 
-proc hookGoValueReadField*(engine: ptr QQmlEngine; goaddr: ptr GoAddr;
+proc hookGoValueReadField*(engine: ptr QQmlEngine; value: ptr GoAddr;
                           memberIndex: cint; getIndex: cint; setIndex: cint;
                           result: ptr DataValue) {.exportc.} =
   echo "hookGoValueReadField called, memberIndex: ", memberIndex, " getIndex: ", getIndex, " setIndex: ", setIndex
-  echo cast[int](goaddr)
+  let typeInfo = getType(getPointerType(value))
+  let memberInfo = getMemberInfo(typeInfo, memberIndex-1)
+  echo memberInfo[]
 
-proc hookGoValueWriteField*(engine: ptr QQmlEngine; goaddr: ptr GoAddr;
+  result.dataType = memberInfo.memberType
+
+  var text: cstring = "John Doe"
+  result.data = cast[array[8, char]](text)
+  result.len = 8
+
+proc hookGoValueWriteField*(engine: ptr QQmlEngine; value: ptr GoAddr;
                            memberIndex: cint; setIndex: cint; assign: ptr DataValue) {.exportc.} =
   echo "hookGoValueWriteField called, memberIndex: ", memberIndex, " setIndex: ", setIndex, " assign: ", cast[cstring](assign.data)
+  if assign.dataType == DTString:
+    var s = cast[ptr cstring](assign.data)
+    echo s[]
 
-proc hookGoValueCallMethod*(engine: ptr QQmlEngine; goaddr: ptr GoAddr;
+
+proc hookGoValueCallMethod*(engine: ptr QQmlEngine; value: ptr GoAddr;
                            memberIndex: cint; result: ptr DataValue)  {.exportc.} =
   echo "hookGoValueCallMethod called, memberIndex: ", memberIndex
 
-proc hookGoValueDestroyed*(engine: ptr QQmlEngine; goaddr: ptr GoAddr) {.exportc.} =
+proc hookGoValueDestroyed*(engine: ptr QQmlEngine; value: ptr GoAddr) {.exportc.} =
   echo "hookGoValueDestroyed called"
+  untrackPointer(value)
 
-proc hookGoValuePaint*(engine: ptr QQmlEngine; goaddr: ptr GoAddr;
+proc hookGoValuePaint*(engine: ptr QQmlEngine; value: ptr GoAddr;
                       reflextIndex: intptr_t) {.exportc.} =
   echo "hookGoValuePaint called"
 
@@ -46,18 +59,18 @@ proc hookSignalDisconnect*(`func`: pointer) {.exportc.} =
 proc hookPanic*(message: cstring) {.exportc.} =
   echo "hookPanic called"
 
-proc hookListPropertyCount*(goaddr: ptr GoAddr; reflectIndex: intptr_t;
+proc hookListPropertyCount*(value: ptr GoAddr; reflectIndex: intptr_t;
                            setIndex: intptr_t): cint {.exportc.} =
   echo "hookListPropertyCount called"
 
-proc hookListPropertyAt*(goaddr: ptr GoAddr; reflectIndex: intptr_t;
+proc hookListPropertyAt*(value: ptr GoAddr; reflectIndex: intptr_t;
                         setIndex: intptr_t; i: cint): ptr QObject {.exportc.} =
   echo "hookListPropertyAt called"
 
-proc hookListPropertyAppend*(goaddr: ptr GoAddr; reflectIndex: intptr_t;
+proc hookListPropertyAppend*(value: ptr GoAddr; reflectIndex: intptr_t;
                             setIndex: intptr_t; obj: ptr QObject) {.exportc.} =
   echo "hookListPropertyAppend called"
 
-proc hookListPropertyClear*(goaddr: ptr GoAddr; reflectIndex: intptr_t;
+proc hookListPropertyClear*(value: ptr GoAddr; reflectIndex: intptr_t;
                            setIndex: intptr_t) {.exportc.} =
   echo "hookListPropertyClear called"

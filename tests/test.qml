@@ -9,7 +9,7 @@ Rectangle {
 
     Student {
     	id: model
-	name: "John"
+	name: "John Doe"
 	age: 30
     }
 
