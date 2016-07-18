@@ -9,11 +9,9 @@ Rectangle {
 
     Student {
     	id: model
-	name: "John Doe"
-	age: 30
+	age: 32
+        name: "Bruce Lee"
     }
-
-
 
     Text {
         id: helloText

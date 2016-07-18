@@ -1,4 +1,4 @@
-import macros, strutils, tables, capi
+import macros, strutils, tables, capi, util
 
 const
   FIELD_PREFIX = "m"
@@ -9,6 +9,7 @@ type
 var
   types = newTable[string, TypeInfo]()
   constructors = newTable[string, proc(retval: var pointer, args: varargs[pointer])]()
+  slots = newTable[string, proc(retval: var pointer, args: varargs[pointer])]()
   pointerToTypeMap = newTable[pointer, string]()
 
 proc addType*(name: string, typeInfo: TypeInfo) =
@@ -20,11 +21,18 @@ proc getType*(name: string): TypeInfo =
 proc getMemberInfo*(typeInfo: TypeInfo, memberIndex: int): ptr MemberInfo =
   cast[ptr MemberInfo](cast[uint](typeInfo.members) + uint(sizeof(MemberInfo) * memberIndex))
 
-proc addConstructor*(name: string, f: proc(retval: var pointer, args: varargs[pointer])) =
-  constructors.add(name, f)
+proc addConstructor*(typeName: string, f: proc(retval: var pointer, args: varargs[pointer])) =
+  constructors.add(typeName, f)
 
-proc getConstructor*(name: string): proc(retval: var pointer, args: varargs[pointer]) =
-  constructors[name]
+proc getConstructor*(typeName: string): proc(retval: var pointer, args: varargs[pointer]) =
+  constructors[typeName]
+
+proc addSlot*(typeName, methodName: string, f: proc(retval: var pointer, args: varargs[pointer])) =
+  slots.add("$1.$2" % [typeName, methodName], f)
+
+proc getSlot*(typeName, methodName: string): proc(retval: var pointer, args: varargs[pointer]) =
+  slots["$1.$2" % [typeName, methodName]]
+
 
 proc trackPointer*(p: pointer, typ: string) =
   pointerToTypeMap.add(p, typ)
@@ -34,6 +42,9 @@ proc untrackPointer*(p: pointer) =
 
 proc getPointerType*(p: pointer): string =
   pointerToTypeMap[p]
+
+proc getSetterName*(fieldName: string): string =
+  "set" & capitalize(fieldName)
 
 macro Q_OBJECT*(head: expr, body: stmt): stmt {.immediate.} =
   var typeName, baseName: NimNode
@@ -53,14 +64,14 @@ macro Q_OBJECT*(head: expr, body: stmt): stmt {.immediate.} =
   result = newStmtList()
 
   var
-    fieldList: seq[string] = @[]
+    fieldList, methodList: seq[string] = @[]
     fieldName, fieldType: NimNode
     fieldNameStr, fieldTypeStr: string
-    newFieldName, setter: NimNode
-    changed: NimNode
+    signal, setter, length: NimNode
     isArray: bool
     typeNameStr = $typeName
     constructorNameStr = "new" & typeNameStr
+
 
     recList = newNimNode(nnkRecList)
     slotProcs = newStmtList()
@@ -68,18 +79,29 @@ macro Q_OBJECT*(head: expr, body: stmt): stmt {.immediate.} =
     typeDeclaration, memberDeclaration = newStmtList()
 
     numField: int
+    numMethod: int
 
 
   for node in body.children:
     case node.kind:
       of nnkMethodDef, nnkProcDef:
+        if node[0].kind == nnkIdent:
+          methodList.add(toLower($node[0]))
+        else:
+          methodList.add(toLower($node[0][1]))
+        inc(numMethod)
         result.add(node)
 
       of nnkVarSection:
+        for n in node.children:
+          fieldNameStr = toLower($n[0])
+          if fieldNameStr in fieldList:
+            raise newException(FieldError, "redefinition of '$1' [$2]" % [fieldNameStr, $typeName])
+          fieldList.add(fieldNameStr)
+
         inc(numField)
       else:
         discard
-
   let
     methodsLen = numField * 2 # setter + getter + sinal?
     membersLen = numField * 3 # field + setter * getter
@@ -98,13 +120,14 @@ var
   for node in body.children:
     case node.kind:
     of nnkMethodDef, nnkProcDef:
-      if startsWith($node[0], constructorNameStr):
-        stm.add("addConstructor(\"" & typeNameStr & "\", " & constructorNameStr & ")\n")
-      ## inject `this: T` into the arguments
-      #let p = copyNimTree(node.params)
-      #p.insert(1, newIdentDefs(ident"self", typeName))
-      #node.params = p
-      #result.add(node)
+      var methodName: string
+      if node[0].kind == nnkIdent:
+        methodName = $node[0]
+      else:
+        methodName = $node[0][1]
+      if methodName == constructorNameStr:
+        stm.add("addConstructor(\"$1\", $2)\n" % [typeNameStr, constructorNameStr])
+      #if methodName.startsWith("set"):
 
     of nnkVarSection:
       # variables get turned into fields of the type.
@@ -119,36 +142,43 @@ var
         else:
           isArray = false
 
-        fieldList.add($fieldName)
-
-        setter = newNimNode(nnkAccQuoted)
-        setter.add(fieldName)
-        setter.add(ident("="))
-
-        changed = ident($fieldName & "Changed")
-        newFieldName = ident(FIELD_PREFIX & capitalize($fieldName))
-        n[0] = newFieldName
         recList.add(n)
+
+        signal = ident("$1Changed" % $fieldName)
+        setter = ident(getSetterName($fieldName))
+        length = ident("len")
 
         if isArray:
           slotProcs.add quote do:
             proc `fieldName`*(self: `typeName`): var `fieldType` =
-              if self.`newFieldName`.isNil:
-                self.`newFieldName` = @[]
-              self.`newFieldName`
+              if self.`fieldName`.isNil:
+                self.`fieldName` = @[]
+              self.`fieldName`
         else:
           slotProcs.add quote do:
-            proc `fieldName`*(self: `typeName`): `fieldType` = self.`newFieldName`
+            proc `fieldName`*(p: var pointer, args: varargs[pointer]) =
+              let self = to[`typeName`](args[0])
+              if p.isNil:
+                p = alloc(DataValue)
+              var dv = cast[ptr DataValue](p)
 
-          slotProcs.add quote do:
-            proc `setter`*(self: `typeName`, val: `fieldType`) =
-              self.`newFieldName` = val
-              self.`changed`()
+              dv.dataType = dataTypeOf(`fieldType`)
+              dv.data = cast[array[8, char]](addr self.`fieldName`)
+              dv.`length` = dataLen(self.`fieldName`)
+
+          if not (($setter).toLower() in methodList): # allow custom setters
+            slotProcs.add quote do:
+              proc `setter`*(p: var pointer, args: varargs[pointer]) =
+                let self = to[`typeName`](args[0])
+                let value = cast[ptr `fieldType`](p)
+                self.`fieldName` = value[]
+                self[].`signal`()
+          stm.add("addSlot(\"$1\", \"$2\", $3)\n" % [typeNameStr, $fieldName, $fieldName])
+          stm.add("addSlot(\"$1\", \"$2\", $3)\n" % [typeNameStr, $setter, $setter])
 
           signalProcs.add quote do:
-            proc `changed`*(self: `typeName`) =
-              discard
-
+            proc `signal`*(self: `typeName`) =
+              echo "signal ", self
 
         fieldNameStr = $fieldName
         fieldTypeStr = $fieldType
@@ -184,39 +214,15 @@ addType("$1", typeInfo)
 
   result.insert(0,
       quote do:
-        type `typeName` = ref object of NimObject
+#        type `typeName` = ref object of NimObject
+        type `typeName` = object
   )
-
-  result[0][0][0][2][0][2] = recList
+  #echo result.treeRepr
+#  result[0][0][0][2][0][2] = recList
+  result[0][0][0][2][2] = recList
 
   typeDeclaration = parseStmt(stm)
-  #result.add(signalProcs)
-  #result.add(slotProcs)
+  result.add(signalProcs)
+  result.add(slotProcs)
   result.add(typeDeclaration)
-  #echo result.treeRepr
-
-
-proc dataTypeOf*(typ: typedesc): DataType =
-  when typ is string:
-    DTString
-  elif typ is bool:
-    DTBool
-  elif typ is int:
-    when sizeof(int) == 8:
-      DTInt64
-    else:
-      DTInt32
-  elif typ is int64:
-    DTInt64
-  elif typ is int32:
-    DTInt32
-  elif typ is float32:
-    DTDloat32
-  elif typ is float64:
-    DTFload64
-  elif typ is auto or typ is any:
-    DTAny
-  elif typ is seq or typ is array:
-    DTListProperty
-  else:
-    DTObject
+  #echo slotProcs.treeRepr

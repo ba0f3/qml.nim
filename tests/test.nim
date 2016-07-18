@@ -7,10 +7,7 @@ Q_OBJECT Student:
   proc newStudent*(p: var pointer, args: varargs[pointer]) =
     if p.isNil:
       p = alloc(Student)
-    var self = to[Student](p)
-    echo "Constructor for Student called"
-    self.mName = "John"
-
+    #var self = to[Student](p)
 
 var nimExtSpec: TypeSpec
 
