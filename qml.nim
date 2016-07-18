@@ -173,6 +173,6 @@ proc registerType*(location: string, major, minor: int, spec: TypeSpec) =
 
   types.add(spec)
 
-proc registerTypes*(location: string, major, minor: int, types: openArray[TypeSpec]) =
+proc registerTypes*(location: string, major, minor: int, types: varargs[TypeSpec]) =
   for t in types:
     registerType(location, major, minor, t)

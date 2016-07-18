@@ -4,11 +4,6 @@ Q_OBJECT Student:
   var name: string
   var age: int
 
-  proc newStudent*(p: var pointer, args: varargs[pointer]) =
-    if p.isNil:
-      p = alloc(Student)
-    #var self = to[Student](p)
-
 var nimExtSpec: TypeSpec
 
 nimExtSpec.name = "Student"

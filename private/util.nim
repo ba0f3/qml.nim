@@ -52,3 +52,8 @@ proc dataLen*(val: auto): cint =
     val.len.cint
   else:
     0
+
+
+proc newTypeSpec*(name: string, singleton = false): TypeSpec =
+  result.name = name
+  result.singleton = cast[int](singleton)

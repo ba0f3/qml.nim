@@ -22,6 +22,7 @@ proc getMemberInfo*(typeInfo: TypeInfo, memberIndex: int): ptr MemberInfo =
   cast[ptr MemberInfo](cast[uint](typeInfo.members) + uint(sizeof(MemberInfo) * memberIndex))
 
 proc addConstructor*(typeName: string, f: proc(retval: var pointer, args: varargs[pointer])) =
+  echo typename
   constructors.add(typeName, f)
 
 proc getConstructor*(typeName: string): proc(retval: var pointer, args: varargs[pointer]) =
@@ -48,7 +49,6 @@ proc getSetterName*(fieldName: string): string =
 
 macro Q_OBJECT*(head: expr, body: stmt): stmt {.immediate.} =
   var typeName, baseName: NimNode
-
   if head.kind == nnkIdent:
     typeName = head
 
@@ -70,7 +70,7 @@ macro Q_OBJECT*(head: expr, body: stmt): stmt {.immediate.} =
     signal, setter, length: NimNode
     isArray: bool
     typeNameStr = $typeName
-    constructorNameStr = "new" & typeNameStr
+    constructorName = ident("new" & typeNameStr)
 
 
     recList = newNimNode(nnkRecList)
@@ -107,27 +107,37 @@ macro Q_OBJECT*(head: expr, body: stmt): stmt {.immediate.} =
     membersLen = numField * 3 # field + setter * getter
 
   var stm = """
-var
-  typeInfo: TypeInfo
-  memberInfoSize = sizeof(MemberInfo)
-  membersSize = memberInfoSize * $1
-  members = cast[uint](alloc(membersSize))
+block:
+  var
+    typeInfo: TypeInfo
+    memberInfoSize = sizeof(MemberInfo)
+    membersSize = memberInfoSize * $2
+    members = cast[uint](alloc(membersSize))
 
-  membersi = 0
-  memberInfo: ptr MemberInfo
-""" % [$membersLen]
+    membersi = 0
+    memberInfo: ptr MemberInfo
+""" % [typeNameStr, $membersLen]
+
+
+  if not (toLower($constructorName) in methodList):
+    result.add quote do:
+      proc `constructorName`*(p: var pointer, args: varargs[pointer]) =
+        if p.isNil:
+          p = alloc(`typeName`)
+        else: discard
+      addConstructor(`typeNameStr`, `constructorName`)
+
   var i = 0
   for node in body.children:
     case node.kind:
-    of nnkMethodDef, nnkProcDef:
-      var methodName: string
-      if node[0].kind == nnkIdent:
-        methodName = $node[0]
-      else:
-        methodName = $node[0][1]
-      if methodName == constructorNameStr:
-        stm.add("addConstructor(\"$1\", $2)\n" % [typeNameStr, constructorNameStr])
-      #if methodName.startsWith("set"):
+    #of nnkMethodDef, nnkProcDef:
+    #  var methodName: string
+    #  if node[0].kind == nnkIdent:
+    #    methodName = $node[0]
+    #  else:
+    #    methodName = $node[0][1]
+    #  if methodName == constructorNameStr:
+
 
     of nnkVarSection:
       # variables get turned into fields of the type.
@@ -160,10 +170,12 @@ var
               let self = to[`typeName`](args[0])
               if p.isNil:
                 p = alloc(DataValue)
-              var dv = cast[ptr DataValue](p)
+              var
+                dv = cast[ptr DataValue](p)
+                data = addr self.`fieldName`
 
               dv.dataType = dataTypeOf(`fieldType`)
-              dv.data = cast[array[8, char]](addr self.`fieldName`)
+              dv.data = cast[array[8, char]](data)
               dv.`length` = dataLen(self.`fieldName`)
 
           if not (($setter).toLower() in methodList): # allow custom setters
@@ -173,8 +185,8 @@ var
                 let value = cast[ptr `fieldType`](p)
                 self.`fieldName` = value[]
                 self[].`signal`()
-          stm.add("addSlot(\"$1\", \"$2\", $3)\n" % [typeNameStr, $fieldName, $fieldName])
-          stm.add("addSlot(\"$1\", \"$2\", $3)\n" % [typeNameStr, $setter, $setter])
+          stm.add("  addSlot(\"$1\", \"$2\", $3)\n" % [typeNameStr, $fieldName, $fieldName])
+          stm.add("  addSlot(\"$1\", \"$2\", $3)\n" % [typeNameStr, $setter, $setter])
 
           signalProcs.add quote do:
             proc `signal`*(self: `typeName`) =
@@ -185,14 +197,14 @@ var
         inc(i)
         stm.add """
 
-memberInfo = cast[ptr MemberInfo](members + uint(memberInfoSize * membersi))
-memberInfo.memberName = "$1"
-memberInfo.memberType = dataTypeOf($2)
-memberInfo.reflectIndex = $3
-memberInfo.reflectGetIndex = -1
-memberInfo.reflectSetIndex = -1
-memberInfo.addrOffset = 0
-inc(membersi)
+  memberInfo = cast[ptr MemberInfo](members + uint(memberInfoSize * membersi))
+  memberInfo.memberName = "$1"
+  memberInfo.memberType = dataTypeOf($2)
+  memberInfo.reflectIndex = $3
+  memberInfo.reflectGetIndex = -1
+  memberInfo.reflectSetIndex = -1
+  memberInfo.addrOffset = 0
+  inc(membersi)
 """ % [$fieldName, fieldTypeStr, $i]
 
     else:
@@ -200,15 +212,15 @@ inc(membersi)
 
 
   stm.add """
-typeInfo.membersLen = $4
-typeInfo.members = cast[ptr MemberInfo](members)
-typeInfo.typeName = "$1"
-typeInfo.fieldsLen = $2 # * 2
-typeInfo.fields = typeInfo.members
-#typeInfo.methodsLen = $3
-typeInfo.methods = nil
-addType("$1", typeInfo)
-""" % [typeNameStr, $numField, $methodsLen, $membersLen]
+  typeInfo.membersLen = $5
+  typeInfo.members = cast[ptr MemberInfo](members)
+  typeInfo.typeName = "$2"
+  typeInfo.fieldsLen = $3 # * 2
+  typeInfo.fields = typeInfo.members
+  #typeInfo.methodsLen = $4
+  #typeInfo.methods = nil
+  addType("$2", typeInfo)
+""" % [typeNameStr, typeNameStr, $numField, $methodsLen, $membersLen]
 
   #echo stm
 

@@ -12,7 +12,7 @@ proc hookIdleTimer*() {.exportc.} =
 proc hookLogHandler*(message: ptr LogMessage) {.exportc.} =
   echo "hookLogHander called"
 
-proc hookGoValueReadField*(engine: ptr QQmlEngine, value: ptr GoAddr, memberIndex, getIndex, setIndex: cint, result: var ptr DataValue) {.exportc.} =
+proc hookGoValueReadField*(engine: ptr QQmlEngine, value: ptr GoAddr, memberIndex, getIndex, setIndex: cint, result: ptr DataValue) {.exportc.} =
   let
     typeInfo = getType(getPointerType(value))
     memberInfo = getMemberInfo(typeInfo, memberIndex-1)
