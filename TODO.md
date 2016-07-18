@@ -7,5 +7,5 @@
     ```nim
 	proc setName(retval: var pointer, args: varargs[pointer]) =
       var self = cast[ptr Student](retval)
-     let name = cast[ptr string](args[0])
+      let name = cast[ptr string](args[0])
     ```
