@@ -18,8 +18,23 @@ proc hookGoValueReadField*(engine: ptr QQmlEngine, value: ptr GoAddr, memberInde
     memberInfo = getMemberInfo(typeInfo, memberIndex-1)
 
   let getMethod = getSlot($typeInfo.typeName, $memberInfo.memberName)
-  var ret = cast[pointer](result)
+  var
+    ret: pointer
+    dv: ptr DataValue
+    str: pointer
   getMethod(ret, cast[pointer](value))
+
+  if memberInfo.memberType == DTString:
+    dv = cast[ptr DataValue](ret)
+    str = alloc(dv.`len` + 1)
+    copyMem(str, cast[pointer](dv.data), dv.`len`)
+    result.dataType = DTString
+    result.data = cast[array[8, cchar]](str)
+    result.`len` = dv.`len`
+
+  else:
+    copyMem(result, ret, sizeof(DataValue))
+
 
 proc hookGoValueWriteField*(engine: ptr QQmlEngine, value: ptr GoAddr, memberIndex, setIndex: cint, assign: ptr DataValue) {.exportc.} =
   let
@@ -34,6 +49,11 @@ proc hookGoValueWriteField*(engine: ptr QQmlEngine, value: ptr GoAddr, memberInd
     var str = $(cptr[])
     var sptr = cast[pointer](addr str)
     setMethod(sptr, cast[pointer](value))
+
+    var s = cast[ptr cstring](assign.data)
+    echo "write ", s[]
+
+
   else:
     var dptr = alloc(length)
     copyMem(dptr, cast[pointer](assign.data), length)
@@ -46,6 +66,7 @@ proc hookGoValueCallMethod*(engine: ptr QQmlEngine, value: ptr GoAddr, memberInd
 proc hookGoValueDestroyed*(engine: ptr QQmlEngine, value: ptr GoAddr) {.exportc.} =
   echo "hookGoValueDestroyed called"
   untrackPointer(value)
+  dealloc(value)
 
 proc hookGoValuePaint*(engine: ptr QQmlEngine, value: ptr GoAddr, reflextIndex: intptr_t) {.exportc.} =
   echo "hookGoValuePaint called"

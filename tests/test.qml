@@ -9,13 +9,13 @@ Rectangle {
 
     Student {
     	id: model
-	age: 32
+	age: 50
         name: "Bruce Lee"
     }
 
     Text {
         id: helloText
-        text: "Hello " + model.name
+        text: "Hello " + model.name + " " + model.age
         y: 30
         anchors.horizontalCenter: page.horizontalCenter
         font.pointSize: 24; font.bold: true

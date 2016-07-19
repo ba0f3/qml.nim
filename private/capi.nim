@@ -66,7 +66,7 @@ type
     DTMethod = 202
   DataValue* {.importc.} = object
     dataType*: DataType
-    data*: array[8, char]
+    data*: array[8, cchar]
     len*: cint
 
   MemberInfo* {.cpp, importc: "GoMemberInfo".} = object

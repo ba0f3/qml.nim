@@ -67,7 +67,7 @@ macro Q_OBJECT*(head: expr, body: stmt): stmt {.immediate.} =
     fieldList, methodList: seq[string] = @[]
     fieldName, fieldType: NimNode
     fieldNameStr, fieldTypeStr: string
-    signal, setter, length: NimNode
+    signal, setter: NimNode
     isArray: bool
     typeNameStr = $typeName
     constructorName = ident("new" & typeNameStr)
@@ -156,7 +156,6 @@ block:
 
         signal = ident("$1Changed" % $fieldName)
         setter = ident(getSetterName($fieldName))
-        length = ident("len")
 
         if isArray:
           slotProcs.add quote do:
@@ -167,16 +166,18 @@ block:
         else:
           slotProcs.add quote do:
             proc `fieldName`*(p: var pointer, args: varargs[pointer]) =
-              let self = to[`typeName`](args[0])
+              var self = to[`typeName`](args[0])[]
               if p.isNil:
                 p = alloc(DataValue)
               var
                 dv = cast[ptr DataValue](p)
-                data = addr self.`fieldName`
+                data = self.`fieldName`
 
               dv.dataType = dataTypeOf(`fieldType`)
-              dv.data = cast[array[8, char]](data)
-              dv.`length` = dataLen(self.`fieldName`)
+              dv.data = cast[array[8, cchar]](data)
+              dv.len = dataLen(self.`fieldName`)
+
+              echo `fieldNameStr`, " ", cast[int](dv.data)
 
           if not (($setter).toLower() in methodList): # allow custom setters
             slotProcs.add quote do:
@@ -201,9 +202,6 @@ block:
   memberInfo.memberName = "$1"
   memberInfo.memberType = dataTypeOf($2)
   memberInfo.reflectIndex = $3
-  memberInfo.reflectGetIndex = -1
-  memberInfo.reflectSetIndex = -1
-  memberInfo.addrOffset = 0
   inc(membersi)
 """ % [$fieldName, fieldTypeStr, $i]
 
@@ -217,8 +215,6 @@ block:
   typeInfo.typeName = "$2"
   typeInfo.fieldsLen = $3 # * 2
   typeInfo.fields = typeInfo.members
-  #typeInfo.methodsLen = $4
-  #typeInfo.methods = nil
   addType("$2", typeInfo)
 """ % [typeNameStr, typeNameStr, $numField, $methodsLen, $membersLen]
 

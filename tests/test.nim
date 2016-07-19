@@ -4,11 +4,8 @@ Q_OBJECT Student:
   var name: string
   var age: int
 
-var nimExtSpec: TypeSpec
-
-nimExtSpec.name = "Student"
 run(proc() =
-  registerType("NimExtension", 1, 0, nimExtSpec)
+  registerType("NimExtension", 1, 0, newTypeSpec("Student"))
 
   let
     engine = newEngine()
