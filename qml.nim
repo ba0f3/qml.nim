@@ -164,7 +164,6 @@ proc registerType*(location: string, major, minor: int, spec: TypeSpec) =
   var spec = spec
 
   var typeInfo = getType($spec.name)
-  echo "registerType ", cast[int](addr spec)
 
   if spec.singleton == 1:
     discard registerSingleton(location.cstring, major.cint, minor.cint, spec.name, addr typeInfo, addr spec)

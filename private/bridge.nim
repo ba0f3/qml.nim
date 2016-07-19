@@ -20,21 +20,10 @@ proc hookGoValueReadField*(engine: ptr QQmlEngine, value: ptr GoAddr, memberInde
   let getMethod = getSlot($typeInfo.typeName, $memberInfo.memberName)
   var
     ret: pointer
-    dv: ptr DataValue
-    str: pointer
   getMethod(ret, cast[pointer](value))
+  copyMem(result, ret, sizeof(DataValue))
 
-  if memberInfo.memberType == DTString:
-    dv = cast[ptr DataValue](ret)
-    str = alloc(dv.`len` + 1)
-    copyMem(str, cast[pointer](dv.data), dv.`len`)
-    result.dataType = DTString
-    result.data = cast[array[8, cchar]](str)
-    result.`len` = dv.`len`
-
-  else:
-    copyMem(result, ret, sizeof(DataValue))
-
+  dealloc(ret)
 
 proc hookGoValueWriteField*(engine: ptr QQmlEngine, value: ptr GoAddr, memberIndex, setIndex: cint, assign: ptr DataValue) {.exportc.} =
   let
@@ -49,10 +38,6 @@ proc hookGoValueWriteField*(engine: ptr QQmlEngine, value: ptr GoAddr, memberInd
     var str = $(cptr[])
     var sptr = cast[pointer](addr str)
     setMethod(sptr, cast[pointer](value))
-
-    var s = cast[ptr cstring](assign.data)
-    echo "write ", s[]
-
 
   else:
     var dptr = alloc(length)
@@ -81,7 +66,7 @@ proc hookSignalDisconnect*(`func`: pointer) {.exportc.} =
   echo "hookSignalDisconnect called"
 
 proc hookPanic*(message: cstring) {.exportc.} =
-  echo "hookPanic called"
+  raise newException(SystemError, $message)
 
 proc hookListPropertyCount*(value: ptr GoAddr, reflectIndex, setIndex: intptr_t): cint {.exportc.} =
   echo "hookListPropertyCount called"

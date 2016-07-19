@@ -22,7 +22,6 @@ proc getMemberInfo*(typeInfo: TypeInfo, memberIndex: int): ptr MemberInfo =
   cast[ptr MemberInfo](cast[uint](typeInfo.members) + uint(sizeof(MemberInfo) * memberIndex))
 
 proc addConstructor*(typeName: string, f: proc(retval: var pointer, args: varargs[pointer])) =
-  echo typename
   constructors.add(typeName, f)
 
 proc getConstructor*(typeName: string): proc(retval: var pointer, args: varargs[pointer]) =
@@ -144,6 +143,8 @@ block:
       for n in node.children:
         fieldName = n[0]
         fieldType = n[1]
+        fieldNameStr = $fieldName
+        fieldTypeStr = $fieldType
 
         if n[1].kind == nnkBracketExpr:
           if n[1][0] != ident("seq"):
@@ -171,13 +172,15 @@ block:
                 p = alloc(DataValue)
               var
                 dv = cast[ptr DataValue](p)
-                data = self.`fieldName`
+
+              when self.`fieldName` is string:
+                let data = cstring(self.`fieldName`)
+              else:
+                let data = self.`fieldName`
 
               dv.dataType = dataTypeOf(`fieldType`)
-              dv.data = cast[array[8, cchar]](data)
               dv.len = dataLen(self.`fieldName`)
-
-              echo `fieldNameStr`, " ", cast[int](dv.data)
+              dv.data = cast[array[8, cchar]](data)
 
           if not (($setter).toLower() in methodList): # allow custom setters
             slotProcs.add quote do:
@@ -191,10 +194,7 @@ block:
 
           signalProcs.add quote do:
             proc `signal`*(self: `typeName`) =
-              echo "signal ", self
-
-        fieldNameStr = $fieldName
-        fieldTypeStr = $fieldType
+              discard #echo "signal ", self
         inc(i)
         stm.add """
 
