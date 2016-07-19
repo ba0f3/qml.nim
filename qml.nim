@@ -119,9 +119,12 @@ proc context*(e: Engine): Context =
   result.engine = e.engine
   result.cptr = engineRootContext(cast[ptr QQmlEngine](e.cptr))
 
+proc setVar*(name: string, )
+
+
 proc createWindow*(obj: Common, ctx: Context): Window =
   if objectIsComponent(cast[ptr QObject](obj.cptr)) == 0:
-    panicf("oject is not a component")
+    panicf("object is not a component")
   var win = new(Window)
   win.engine = obj.engine
 

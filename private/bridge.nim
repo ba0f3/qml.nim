@@ -49,7 +49,6 @@ proc hookGoValueCallMethod*(engine: ptr QQmlEngine, value: ptr GoAddr, memberInd
   echo "hookGoValueCallMethod called, memberIndex: ", memberIndex
 
 proc hookGoValueDestroyed*(engine: ptr QQmlEngine, value: ptr GoAddr) {.exportc.} =
-  echo "hookGoValueDestroyed called"
   untrackPointer(value)
   dealloc(value)
 
