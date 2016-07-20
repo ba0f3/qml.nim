@@ -133,6 +133,11 @@ proc getVar*(ctx: Context, name: string): ptr DataValue =
   contextGetProperty(to[QQmlContext](ctx.cptr), qname, addr dv)
   result = addr dv
 
+proc spawn(ctx: Context): Context =
+  result = new(Context)
+  result.engine = ctx.engine
+  result.cptr = contextSpawn(ctx.cptr)
+
 proc createWindow*(obj: Common, ctx: Context): Window =
   if objectIsComponent(to[QObject](obj.cptr)) == 0:
     panicf("object is not a component")

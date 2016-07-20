@@ -11,18 +11,25 @@ This project is a fork of [go-qml](https://github.com/go-qml/qml), with help fro
 - [nimqml](https://github.com/filcuc/nimqml)
 - [qmlrs](https://github.com/cyndis/qmlrs)
 
+## What's working
+This project is under development, working features will be updated here.
+
+- Load QML script and display window
+- Read/write Nim data from QmlEngine
+- Set Nim variable as QmlContext property and vice versa
+
 ## Requirements
 - Qt5
 - fasm (for compile coro module)
 
 ## Installation
-```shell
-nimble install qml
+```sh
+$ nimble install qml
 ```
 
-## Example
+## Examples
 
-coming soon
+See [examples](./examples) folder
 
 ## Licensing
 This code is licensed under LGPL-3.0. See [LICENSE](./LICENSE) for details.
