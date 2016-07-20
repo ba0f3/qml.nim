@@ -4,7 +4,7 @@ proc hookGoValueTypeNew*(cvalue: ptr GoValue, spec: ptr TypeSpec): ptr GoAddr {.
   var p: pointer
   getConstructor($spec.name)(p)
   trackPointer(p, $spec.name)
-  cast[ptr GoAddr](p)
+  to[GoAddr](p)
 
 proc hookIdleTimer*() {.exportc.} =
   echo "hookIdleTimer called"
@@ -34,7 +34,7 @@ proc hookGoValueWriteField*(engine: ptr QQmlEngine, value: ptr GoAddr, memberInd
     length = getDataLength(assign)
 
   if memberInfo.memberType == DTString:
-    var cptr = cast[ptr cstring](assign.data)
+    var cptr = to[cstring](assign.data)
     var str = $(cptr[])
     var sptr = cast[pointer](addr str)
     setMethod(sptr, cast[pointer](value))

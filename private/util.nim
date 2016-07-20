@@ -53,6 +53,19 @@ proc dataLen*(val: auto): cint =
   else:
     0
 
+template dataValueOf*(dv: ptr DataValue, value: auto): stmt =
+   dv.dataType = dataTypeOf(type(value))
+   dv.len = dataLen(value)
+
+   when value is string:
+     var data = cstring(value)
+   else:
+     var data = value
+   dv.data = cast[QPointer](data)
+
+proc dataValueOf*(value: auto): DataValue {.inline.} =
+   dataValueOf(addr result, value)
+
 
 proc newTypeSpec*(name: string, singleton = false): TypeSpec =
   result.name = name

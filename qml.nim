@@ -90,13 +90,13 @@ proc load*(e: Engine, location: string, r: Stream): Component =
       location = "file:///" & joinPath(getCurrentDir(), location)
 
   result = new(Component)
-  result.cptr = newComponent(cast[ptr QQmlEngine](e.cptr), nil)
+  result.cptr = newComponent(to[QQmlEngine](e.cptr), nil)
   if qrc:
-    componentLoadURL(cast[ptr QQmlComponent](result.cptr), location, location.len.cint)
+    componentLoadURL(to[QQmlComponent](result.cptr), location, location.len.cint)
   else:
     let data = r.readAll()
-    componentSetData(cast[ptr QQmlComponent](result.cptr), data, data.len.cint, location, location.len.cint)
-  let message = componentErrorString(cast[ptr QQmlComponent](result.cptr))
+    componentSetData(to[QQmlComponent](result.cptr), data, data.len.cint, location, location.len.cint)
+  let message = componentErrorString(to[QQmlComponent](result.cptr))
   if message != nil:
     # free meesage?
     raise newException(IOError, $message)
@@ -117,39 +117,50 @@ proc loadString*(e: Engine, location: string, qml: string): Component =
 proc context*(e: Engine): Context =
   result = new(Context)
   result.engine = e.engine
-  result.cptr = engineRootContext(cast[ptr QQmlEngine](e.cptr))
+  result.cptr = engineRootContext(to[QQmlEngine](e.cptr))
 
-proc setVar*(name: string, )
+proc setVar*(ctx: Context, name: string, value: auto) =
+  var
+    dv = to[DataValue](alloc(DataValue))
+    qname = newString(cstring(name), name.len.cint)
+  dataValueOf(dv, value)
+  contextSetProperty(to[QQmlContext](ctx.cptr), qname, dv)
 
+proc getVar*(ctx: Context, name: string): ptr DataValue =
+  var
+    dv: DataValue
+    qname = newString(name.cstring, name.len.cint)
+  contextGetProperty(to[QQmlContext](ctx.cptr), qname, addr dv)
+  result = addr dv
 
 proc createWindow*(obj: Common, ctx: Context): Window =
-  if objectIsComponent(cast[ptr QObject](obj.cptr)) == 0:
+  if objectIsComponent(to[QObject](obj.cptr)) == 0:
     panicf("object is not a component")
   var win = new(Window)
   win.engine = obj.engine
 
   var ctxaddr: ptr QQmlContext
   if ctx != nil:
-    ctxaddr = cast[ptr QQmlContext](ctx.cptr)
-  win.cptr = componentCreateWindow(cast[ptr QQmlComponent](obj.cptr), ctxaddr)
+    ctxaddr = to[QQmlContext](ctx.cptr)
+  win.cptr = componentCreateWindow(to[QQmlComponent](obj.cptr), ctxaddr)
   result = win
 
 proc show*(w: Window) =
-  windowShow(cast[ptr QQuickWindow](w.cptr))
+  windowShow(to[QQuickWindow](w.cptr))
 
 proc hide*(w: Window) =
-  windowHide(cast[ptr QQuickWindow](w.cptr))
+  windowHide(to[QQuickWindow](w.cptr))
 
 proc platformId*(w: Window): Common =
   var obj = new(Common)
   obj.engine = w.engine
-  obj.cptr = windowRootObject(cast[ptr QQuickWindow](w.cptr))
+  obj.cptr = windowRootObject(to[QQuickWindow](w.cptr))
 
   result = obj
 
 proc wait*(w: Window) =
   inc(waitingWindows)
-  windowConnectHidden(cast[ptr QQuickWindow](w.cptr))
+  windowConnectHidden(to[QQuickWindow](w.cptr))
 
 proc hookWindowHidden*(cptr: ptr QObject) {.exportc.} =
   echo "hookWindowHidden: only quit once no handler is handling this event"

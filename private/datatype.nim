@@ -19,7 +19,7 @@ proc getType*(name: string): TypeInfo =
   types[name]
 
 proc getMemberInfo*(typeInfo: TypeInfo, memberIndex: int): ptr MemberInfo =
-  cast[ptr MemberInfo](cast[uint](typeInfo.members) + uint(sizeof(MemberInfo) * memberIndex))
+  to[MemberInfo](cast[uint](typeInfo.members) + uint(sizeof(MemberInfo) * memberIndex))
 
 proc addConstructor*(typeName: string, f: proc(retval: var pointer, args: varargs[pointer])) =
   constructors.add(typeName, f)
@@ -171,22 +171,14 @@ block:
               if p.isNil:
                 p = alloc(DataValue)
               var
-                dv = cast[ptr DataValue](p)
-
-              when self.`fieldName` is string:
-                let data = cstring(self.`fieldName`)
-              else:
-                let data = self.`fieldName`
-
-              dv.dataType = dataTypeOf(`fieldType`)
-              dv.len = dataLen(self.`fieldName`)
-              dv.data = cast[array[8, cchar]](data)
+                dv = to[DataValue](p)
+              dataValueOf(dv, self.`fieldName`)
 
           if not (($setter).toLower() in methodList): # allow custom setters
             slotProcs.add quote do:
               proc `setter`*(p: var pointer, args: varargs[pointer]) =
                 let self = to[`typeName`](args[0])
-                let value = cast[ptr `fieldType`](p)
+                let value = to[`fieldType`](p)
                 self.`fieldName` = value[]
                 self[].`signal`()
           stm.add("  addSlot(\"$1\", \"$2\", $3)\n" % [typeNameStr, $fieldName, $fieldName])
@@ -198,7 +190,7 @@ block:
         inc(i)
         stm.add """
 
-  memberInfo = cast[ptr MemberInfo](members + uint(memberInfoSize * membersi))
+  memberInfo = to[MemberInfo](members + uint(memberInfoSize * membersi))
   memberInfo.memberName = "$1"
   memberInfo.memberType = dataTypeOf($2)
   memberInfo.reflectIndex = $3
@@ -211,7 +203,7 @@ block:
 
   stm.add """
   typeInfo.membersLen = $5
-  typeInfo.members = cast[ptr MemberInfo](members)
+  typeInfo.members = to[MemberInfo](members)
   typeInfo.typeName = "$2"
   typeInfo.fieldsLen = $3 # * 2
   typeInfo.fields = typeInfo.members

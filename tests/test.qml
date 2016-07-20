@@ -15,7 +15,7 @@ Rectangle {
 
     Text {
         id: helloText
-        text: "Hello " + model.name + " " + model.age
+        text: hello + " " + model.name
         y: 30
         anchors.horizontalCenter: page.horizontalCenter
         font.pointSize: 24; font.bold: true
