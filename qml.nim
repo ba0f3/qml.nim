@@ -136,19 +136,43 @@ proc getVar*(ctx: Context, name: string): ptr DataValue =
 proc spawn(ctx: Context): Context =
   result = new(Context)
   result.engine = ctx.engine
-  result.cptr = contextSpawn(ctx.cptr)
+  result.cptr = contextSpawn(to[QQmlContext](ctx.cptr))
 
-proc createWindow*(obj: Common, ctx: Context): Window =
+
+proc getPointer*(obj: Common): pointer =
+  var
+    cptr: ptr GoAddr
+    cerr: ptr error
+  cerr = objectGoAddr(to[QObject](obj.cptr), addr cptr)
+  if not cerr.isNil:
+    raise newException(IOError, $(cerr[]))
+
+  result = cptr
+
+
+proc create*(obj: Common, ctx: Context): Common =
   if objectIsComponent(to[QObject](obj.cptr)) == 0:
     panicf("object is not a component")
-  var win = new(Window)
-  win.engine = obj.engine
+
+  result = new(Common)
+  result.engine = obj.engine
 
   var ctxaddr: ptr QQmlContext
   if ctx != nil:
     ctxaddr = to[QQmlContext](ctx.cptr)
-  win.cptr = componentCreateWindow(to[QQmlComponent](obj.cptr), ctxaddr)
-  result = win
+
+  result.cptr = componentCreate(to[QQmlComponent](obj.cptr), ctxaddr)
+
+proc createWindow*(obj: Common, ctx: Context): Window =
+  if objectIsComponent(to[QObject](obj.cptr)) == 0:
+    panicf("object is not a component")
+  result = new(Window)
+  result.engine = obj.engine
+
+  var ctxaddr: ptr QQmlContext
+  if ctx != nil:
+    ctxaddr = to[QQmlContext](ctx.cptr)
+  result.cptr = componentCreateWindow(to[QQmlComponent](obj.cptr), ctxaddr)
 
 proc show*(w: Window) =
   windowShow(to[QQuickWindow](w.cptr))

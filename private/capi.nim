@@ -41,7 +41,7 @@ type
 
   QPointer* = array[0..7, cchar]
 
-  error* = char
+  error* = cstring
 
 proc errorf*(format: cstring): ptr error {.varargs, cpp.}
 proc panicf*(format: cstring) {.varargs, cpp.}

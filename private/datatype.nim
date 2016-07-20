@@ -118,14 +118,14 @@ block:
 """ % [typeNameStr, $membersLen]
 
 
+
   if not (toLower($constructorName) in methodList):
     result.add quote do:
       proc `constructorName`*(p: var pointer, args: varargs[pointer]) =
         if p.isNil:
           p = alloc(`typeName`)
-        else: discard
-      addConstructor(`typeNameStr`, `constructorName`)
-
+  result.add quote do:
+    addConstructor(`typeNameStr`, `constructorName`)
   var i = 0
   for node in body.children:
     case node.kind:

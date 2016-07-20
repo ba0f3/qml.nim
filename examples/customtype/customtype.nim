@@ -4,7 +4,13 @@ Q_OBJECT NimType:
   var text: string
 
 Q_OBJECT NimSingleton:
-  event: string
+  var event: string
+
+  proc newNimSingleton*(p: var pointer, args: varargs[pointer]) =
+    if p.isNil:
+       p = alloc(NimSingleton)
+    let self = to[NimSingleton](p)
+    self.event = "birthday"
 
 
 var
@@ -17,7 +23,9 @@ run(proc() =
   let
     engine = newEngine()
     comp = engine.loadFile("customtype.qml")
-    win = comp.createWindow(nil)
-  win.show()
-  win.wait()
+  var
+    value = comp.create(nil)
+    nimType = to[NimType](value.getPointer())
+
+  echo "Text is: ", nimType.text
 )

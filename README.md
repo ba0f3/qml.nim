@@ -16,7 +16,8 @@ This project is under development, working features will be updated here.
 
 - Load QML script and display window
 - Read/write Nim data from QmlEngine
-- Set Nim variable as QmlContext property and vice versa
+- Set and get QmlContext property
+- Retrive instance of a QML component
 
 ## Requirements
 - Qt5
