@@ -150,7 +150,7 @@ proc getPointer*(obj: Common): pointer =
   result = cptr
 
 
-proc create*(obj: Common, ctx: Context): Common =
+proc create*(obj: Common, ctx: Context = nil): Common =
   if objectIsComponent(to[QObject](obj.cptr)) == 0:
     panicf("object is not a component")
 

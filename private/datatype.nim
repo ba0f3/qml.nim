@@ -33,7 +33,6 @@ proc addSlot*(typeName, methodName: string, f: proc(retval: var pointer, args: v
 proc getSlot*(typeName, methodName: string): proc(retval: var pointer, args: varargs[pointer]) =
   slots["$1.$2" % [typeName, methodName]]
 
-
 proc trackPointer*(p: pointer, typ: string) =
   pointerToTypeMap.add(p, typ)
 

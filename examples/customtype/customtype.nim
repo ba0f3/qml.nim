@@ -3,6 +3,13 @@ import ../../qml
 Q_OBJECT NimType:
   var text: string
 
+  proc setText*(p: var pointer, args: varargs[pointer]) =
+    let
+      self = to[NimType](args[0])
+      value = to[string](p)
+    echo "Text changing to: ", value[]
+    self.text = value[]
+
 Q_OBJECT NimSingleton:
   var event: string
 
@@ -20,11 +27,10 @@ var
 run(proc() =
   registerTypes("NimExtensions", 1, 0, nimType, nimSingleton)
 
-  let
+  var
     engine = newEngine()
     comp = engine.loadFile("customtype.qml")
-  var
-    value = comp.create(nil)
+    value = comp.create()
     nimType = to[NimType](value.getPointer())
 
   echo "Text is: ", nimType.text
