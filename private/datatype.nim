@@ -45,11 +45,16 @@ proc getPointerType*(p: pointer): string =
 proc getSetterName*(fieldName: string): string =
   "set" & capitalize(fieldName)
 
+
+proc injectMethod(node: NimNode) =
+  discard
+
 macro Q_OBJECT*(head: expr, body: stmt): stmt {.immediate.} =
+  result = newStmtList()
+
   var typeName, baseName: NimNode
   if head.kind == nnkIdent:
     typeName = head
-
   elif head.kind == nnkInfix and $head[0] == "of":
     typeName = head[1]
     baseName = head[2]
@@ -57,9 +62,20 @@ macro Q_OBJECT*(head: expr, body: stmt): stmt {.immediate.} =
     quit "Invalid node: " & head.lispRepr
 
   if not baseName.isNil:
-    raise newException(SystemError, "inheritance for NimObject is not supported")
+    raise newException(SystemError, "inheritance for QObject is not supported")
 
-  result = newStmtList()
+  var
+    typeDef = newNimNode(nnkTypeDef)
+    objectTy = newNimNode(nnkObjectTy)
+
+  typeDef.add(`typeName`)
+  typeDef.add(newEmptyNode())
+  typeDef.add(objectTy)
+
+  objectTy.add(newEmptyNode())
+  objectTy.add(newEmptyNode())
+
+  result.add(newNimNode(nnkTypeSection).add(typeDef))
 
   var
     fieldList, methodList: seq[string] = @[]
@@ -209,17 +225,9 @@ block:
   addType("$2", typeInfo)
 """ % [typeNameStr, typeNameStr, $numField, $methodsLen, $membersLen]
 
-  #echo stm
 
-  result.insert(0,
-      quote do:
-#        type `typeName` = ref object of NimObject
-        type `typeName` = object
-  )
-  #echo result.treeRepr
-#  result[0][0][0][2][0][2] = recList
-  result[0][0][0][2][2] = recList
-
+  objectTy.add(recList)
+  echo result.treeRepr
   typeDeclaration = parseStmt(stm)
   result.add(signalProcs)
   result.add(slotProcs)
