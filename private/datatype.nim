@@ -174,7 +174,7 @@ block:
     registerConstructor(`typeNameStr`, `constructorName`)
   var i = 0
   for node in body.children:
-    if node.kind = nnkVarSection:
+    if node.kind == nnkVarSection:
       # variables get turned into fields of the type.
       for n in node.children:
         fieldName = n[0]
