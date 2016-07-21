@@ -46,13 +46,12 @@ proc getSetterName*(fieldName: string): string =
   "set" & capitalize(fieldName)
 
 
-proc rewriteMethod(node: NimNode) =
+proc rewriteMethodDeclaration(node: NimNode) =
   var
     oldParams = node.params
     oldBody = node.body
     params = newNimNode(nnkFormalParams)
     body = newStmtList()
-
 
   params.add newEmptyNode() # no return value
   params.add newIdentDefs(ident("retVal"), newNimNode(nnkVarTy).add(ident("pointer"))) # retval: var pointer
@@ -87,8 +86,6 @@ proc rewriteMethod(node: NimNode) =
   node.params = params
   node.body = body
 
-  echo body.treeRepr
-
 macro Q_OBJECT*(head: expr, body: stmt): stmt {.immediate.} =
   result = newStmtList()
 
@@ -108,13 +105,8 @@ macro Q_OBJECT*(head: expr, body: stmt): stmt {.immediate.} =
     typeDef = newNimNode(nnkTypeDef)
     objectTy = newNimNode(nnkObjectTy)
 
-  typeDef.add(`typeName`)
-  typeDef.add(newEmptyNode())
-  typeDef.add(objectTy)
-
-  objectTy.add(newEmptyNode())
-  objectTy.add(newEmptyNode())
-
+  typeDef.add(`typeName`, newEmptyNode(), objectTy)
+  objectTy.add(newEmptyNode(), newEmptyNode())
   result.add(newNimNode(nnkTypeSection).add(typeDef))
 
   var
@@ -144,7 +136,7 @@ macro Q_OBJECT*(head: expr, body: stmt): stmt {.immediate.} =
         else:
           methodList.add(toLower($node[0][1]))
         inc(numMethod)
-        rewriteMethod(node)
+        rewriteMethodDeclaration(node)
         result.add(node)
 
       of nnkVarSection:
@@ -173,8 +165,6 @@ block:
     memberInfo: ptr MemberInfo
 """ % [typeNameStr, $membersLen]
 
-
-
   if not (toLower($constructorName) in methodList):
     result.add quote do:
       proc `constructorName`*(p: var pointer, args: varargs[pointer]) =
@@ -184,17 +174,7 @@ block:
     registerConstructor(`typeNameStr`, `constructorName`)
   var i = 0
   for node in body.children:
-    case node.kind:
-    #of nnkMethodDef, nnkProcDef:
-    #  var methodName: string
-    #  if node[0].kind == nnkIdent:
-    #    methodName = $node[0]
-    #  else:
-    #    methodName = $node[0][1]
-    #  if methodName == constructorNameStr:
-
-
-    of nnkVarSection:
+    if node.kind = nnkVarSection:
       # variables get turned into fields of the type.
       for n in node.children:
         fieldName = n[0]
@@ -253,10 +233,6 @@ block:
   inc(membersi)
 """ % [$fieldName, fieldTypeStr, $i]
 
-    else:
-      discard
-
-
   stm.add """
   typeInfo.membersLen = $5
   typeInfo.members = to[MemberInfo](members)
@@ -266,9 +242,7 @@ block:
   addType("$2", typeInfo)
 """ % [typeNameStr, typeNameStr, $numField, $methodsLen, $membersLen]
 
-
   objectTy.add(recList)
-  #echo result.treeRepr
   typeDeclaration = parseStmt(stm)
   result.add(signalProcs)
   result.add(slotProcs)
