@@ -1,22 +1,20 @@
 import macros, strutils, tables, capi, util
 
-const
-  FIELD_PREFIX = "m"
-
-type
-  NimObject* = ref object of RootObj
+let
+  MEMBER_INFO_LENGTH* = sizeof(MemberInfo)
 
 var
-  types = newTable[string, TypeInfo]()
+  typeInfoMap = newTable[string, TypeInfo]()
   constructors = newTable[string, proc(retval: var pointer, args: varargs[pointer])]()
   slots = newTable[string, proc(retval: var pointer, args: varargs[pointer])]()
   pointerToTypeMap = newTable[pointer, string]()
+  typeIndex {.compileTime.} = 0
 
 proc addType*(name: string, typeInfo: TypeInfo) =
-  types[name] = typeInfo
+  typeInfoMap[name] = typeInfo
 
 proc getType*(name: string): TypeInfo =
-  types[name]
+  typeInfoMap[name]
 
 proc getMemberInfo*(typeInfo: TypeInfo, memberIndex: int): ptr MemberInfo =
   to[MemberInfo](cast[uint](typeInfo.members) + uint(sizeof(MemberInfo) * memberIndex))
@@ -36,8 +34,9 @@ proc getSlot*(typeName, methodName: string): proc(retval: var pointer, args: var
 proc trackPointer*(p: pointer, typ: string) =
   pointerToTypeMap.add(p, typ)
 
-proc untrackPointer*(p: pointer) =
+proc destroyPointer*(p: pointer) =
   pointerToTypeMap.del(p)
+  dealloc(p)
 
 proc getPointerType*(p: pointer): string =
   pointerToTypeMap[p]
@@ -45,8 +44,7 @@ proc getPointerType*(p: pointer): string =
 proc getSetterName*(fieldName: string): string =
   "set" & capitalize(fieldName)
 
-
-proc rewriteMethodDeclaration(node: NimNode) =
+proc rewriteMethodDeclaration(node: NimNode) {.compileTime.} =
   var
     oldParams = node.params
     oldBody = node.body
@@ -86,7 +84,22 @@ proc rewriteMethodDeclaration(node: NimNode) =
   node.params = params
   node.body = body
 
+proc processFieldList(body: NimNode): seq[tuple[name, typ: string]] {.compileTime.} =
+  result = @[]
+  var fieldList: seq[string] = @[]
+  for node in body.children:
+    if node.kind  == nnkVarSection:
+      for n in node.children:
+        let
+          fieldName = $n[0]
+          fieldType = $n[1]
+        if fieldName.toLower() in fieldList:
+          raise newException(FieldError, "redefinition of '$1'" % [fieldName])
+        fieldList.add(fieldName.toLower())
+        result.add((fieldName, fieldType))
+
 macro Q_OBJECT*(head: expr, body: stmt): stmt {.immediate.} =
+  inc(typeIndex)
   result = newStmtList()
 
   var typeName, baseName: NimNode
@@ -102,15 +115,19 @@ macro Q_OBJECT*(head: expr, body: stmt): stmt {.immediate.} =
     raise newException(SystemError, "inheritance for QObject is not supported")
 
   var
-    typeDef = newNimNode(nnkTypeDef)
     objectTy = newNimNode(nnkObjectTy)
+    fieldList, methodList: seq[string] = @[]
 
-  typeDef.add(`typeName`, newEmptyNode(), objectTy)
   objectTy.add(newEmptyNode(), newEmptyNode())
-  result.add(newNimNode(nnkTypeSection).add(typeDef))
+  result.add(newNimNode(nnkTypeSection).add(
+    newNimNode(nnkTypeDef).add(typeName, newEmptyNode(), objectTy)
+  ))
+
+  fieldList = processFieldList(body)
 
   var
-    fieldList, methodList: seq[string] = @[]
+
+
     fieldName, fieldType: NimNode
     fieldNameStr, fieldTypeStr: string
     signal, setter: NimNode
@@ -127,6 +144,11 @@ macro Q_OBJECT*(head: expr, body: stmt): stmt {.immediate.} =
     numField: int
     numMethod: int
 
+  var stm = """
+var
+  membersSize, membersi: int
+  members: uint
+  memberInfo: ptr MemberInfo"""
 
   for node in body.children:
     case node.kind:
@@ -152,18 +174,12 @@ macro Q_OBJECT*(head: expr, body: stmt): stmt {.immediate.} =
   let
     methodsLen = numField * 2 # setter + getter + sinal?
     membersLen = numField * 3 # field + setter * getter
+  stm.add """
 
-  var stm = """
-block:
-  var
-    typeInfo: TypeInfo
-    memberInfoSize = sizeof(MemberInfo)
-    membersSize = memberInfoSize * $2
-    members = cast[uint](alloc(membersSize))
-
-    membersi = 0
-    memberInfo: ptr MemberInfo
-""" % [typeNameStr, $membersLen]
+  typeInfo$1: TypeInfo
+members = cast[uint](alloc(MEMBER_INFO_LENGTH * $2))
+membersi = 0
+""" % [$typeIndex, $membersLen]
 
   if not (toLower($constructorName) in methodList):
     result.add quote do:
@@ -217,8 +233,8 @@ block:
                 let value = to[`fieldType`](args[1])
                 self.`fieldName` = value[]
                 self[].`signal`()
-          stm.add("  addSlot(\"$1\", \"$2\", $3)\n" % [typeNameStr, $fieldName, $fieldName])
-          stm.add("  addSlot(\"$1\", \"$2\", $3)\n" % [typeNameStr, $setter, $setter])
+          stm.add("addSlot(\"$1\", \"$2\", $3)\n" % [typeNameStr, $fieldName, $fieldName])
+          stm.add("addSlot(\"$1\", \"$2\", $3)\n" % [typeNameStr, $setter, $setter])
 
           signalProcs.add quote do:
             proc `signal`*(self: `typeName`) =
@@ -226,22 +242,22 @@ block:
         inc(i)
         stm.add """
 
-  memberInfo = to[MemberInfo](members + uint(memberInfoSize * membersi))
-  memberInfo.memberName = "$1"
-  memberInfo.memberType = dataTypeOf($2)
-  memberInfo.reflectIndex = $3
-  inc(membersi)
+memberInfo = to[MemberInfo](members + uint(MEMBER_INFO_LENGTH * membersi))
+memberInfo.memberName = "$1"
+memberInfo.memberType = dataTypeOf($2)
+memberInfo.reflectIndex = $3
+inc(membersi)
 """ % [$fieldName, fieldTypeStr, $i]
 
   stm.add """
-  typeInfo.membersLen = $5
-  typeInfo.members = to[MemberInfo](members)
-  typeInfo.typeName = "$2"
-  typeInfo.fieldsLen = $3 # * 2
-  typeInfo.fields = typeInfo.members
-  addType("$2", typeInfo)
-""" % [typeNameStr, typeNameStr, $numField, $methodsLen, $membersLen]
-
+typeInfo$1.membersLen = $5
+typeInfo$1.members = to[MemberInfo](members)
+typeInfo$1.typeName = "$2"
+typeInfo$1.fieldsLen = $3 # * 2
+typeInfo$1.fields = typeInfo$1.members
+addType("$2", typeInfo$1)
+""" % [$typeIndex, typeNameStr, $numField, $methodsLen, $membersLen]
+  echo stm
   objectTy.add(recList)
   typeDeclaration = parseStmt(stm)
   result.add(signalProcs)

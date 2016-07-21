@@ -16,6 +16,7 @@ type
   Context* = ref object of Common
   Window* = ref object of Common
 
+
 var
   initialized: bool
   guiIdleRun: int32

@@ -50,8 +50,7 @@ proc hookGoValueCallMethod*(engine: ptr QQmlEngine, value: ptr GoAddr, memberInd
   echo "hookGoValueCallMethod called, memberIndex: ", memberIndex
 
 proc hookGoValueDestroyed*(engine: ptr QQmlEngine, value: ptr GoAddr) {.exportc.} =
-  untrackPointer(value)
-  dealloc(value)
+  destroyPointer(value)
 
 proc hookGoValuePaint*(engine: ptr QQmlEngine, value: ptr GoAddr, reflextIndex: intptr_t) {.exportc.} =
   echo "hookGoValuePaint called"
