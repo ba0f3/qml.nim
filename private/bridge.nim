@@ -29,20 +29,21 @@ proc hookGoValueWriteField*(engine: ptr QQmlEngine, value: ptr GoAddr, memberInd
   let
     typeInfo = getType(getPointerType(value))
     memberInfo = getMemberInfo(typeInfo, memberIndex-1)
-  let setMethod = getSlot($typeInfo.typeName, getSetterName($memberInfo.memberName))
-  var
+    setMethod = getSlot($typeInfo.typeName, getSetterName($memberInfo.memberName))
     length = getDataLength(assign)
-
+  var
+      NULL: pointer
   if memberInfo.memberType == DTString:
-    var cptr = to[cstring](assign.data)
-    var str = $(cptr[])
-    var sptr = cast[pointer](addr str)
-    setMethod(sptr, cast[pointer](value))
+    var
+      cptr = to[cstring](assign.data)
+      str = $(cptr[])
+    setMethod(NULL, cast[pointer](value), cast[pointer](addr str))
 
   else:
-    var dptr = alloc(length)
+    let
+      dptr = alloc(length)
     copyMem(dptr, cast[pointer](assign.data), length)
-    setMethod(dptr, cast[pointer](value))
+    setMethod(NULL, cast[pointer](value), dptr)
     dealloc(dptr)
 
 proc hookGoValueCallMethod*(engine: ptr QQmlEngine, value: ptr GoAddr, memberIndex: cint, result: ptr DataValue)  {.exportc.} =

@@ -21,7 +21,7 @@ proc getType*(name: string): TypeInfo =
 proc getMemberInfo*(typeInfo: TypeInfo, memberIndex: int): ptr MemberInfo =
   to[MemberInfo](cast[uint](typeInfo.members) + uint(sizeof(MemberInfo) * memberIndex))
 
-proc addConstructor*(typeName: string, f: proc(retval: var pointer, args: varargs[pointer])) =
+proc registerConstructor*(typeName: string, f: proc(retval: var pointer, args: varargs[pointer])) =
   constructors.add(typeName, f)
 
 proc getConstructor*(typeName: string): proc(retval: var pointer, args: varargs[pointer]) =
@@ -46,8 +46,48 @@ proc getSetterName*(fieldName: string): string =
   "set" & capitalize(fieldName)
 
 
-proc injectMethod(node: NimNode) =
-  discard
+proc rewriteMethod(node: NimNode) =
+  var
+    oldParams = node.params
+    oldBody = node.body
+    params = newNimNode(nnkFormalParams)
+    body = newStmtList()
+
+
+  params.add newEmptyNode() # no return value
+  params.add newIdentDefs(ident("retVal"), newNimNode(nnkVarTy).add(ident("pointer"))) # retval: var pointer
+  params.add newIdentDefs(ident("args"), newNimNode(nnkBracketExpr).add(ident("varargs"), ident("pointer"))) # args: varargs[pointer]
+
+  if oldParams[0].kind != nnkEmpty:
+    body.add(newIfStmt((
+      newDotExpr(ident("retVal"), ident("isNil")), # if retVal.isNil
+      newStmtList(newAssignment(ident("retVal"), newCall(ident("alloc"), oldParams[0]))) # retVal = alloc(`retVal`)
+    )))
+
+    body.add(newVarStmt(ident("result"), # var result = to[`retVal`](retVal)
+      newCall(
+        newNimNode(nnkBracketExpr).add(ident("to"), oldParams[0]),
+        ident("retVal")
+      )
+    ))
+
+  for i in 1..<oldParams.len:
+    let
+      param = oldParams[i]
+      argIndex = i-1
+
+    body.add(newVarStmt(param[0], # var self = to[Type](args[0])
+      newCall(
+        newNimNode(nnkBracketExpr).add(ident("to"), param[1]),
+        newNimNode(nnkBracketExpr).add(ident("args"), newIntLitNode(argIndex)),
+      )
+    ))
+  body.add(oldBody)
+
+  node.params = params
+  node.body = body
+
+  echo body.treeRepr
 
 macro Q_OBJECT*(head: expr, body: stmt): stmt {.immediate.} =
   result = newStmtList()
@@ -104,6 +144,7 @@ macro Q_OBJECT*(head: expr, body: stmt): stmt {.immediate.} =
         else:
           methodList.add(toLower($node[0][1]))
         inc(numMethod)
+        rewriteMethod(node)
         result.add(node)
 
       of nnkVarSection:
@@ -140,7 +181,7 @@ block:
         if p.isNil:
           p = alloc(`typeName`)
   result.add quote do:
-    addConstructor(`typeNameStr`, `constructorName`)
+    registerConstructor(`typeNameStr`, `constructorName`)
   var i = 0
   for node in body.children:
     case node.kind:
@@ -193,7 +234,7 @@ block:
             slotProcs.add quote do:
               proc `setter`*(p: var pointer, args: varargs[pointer]) =
                 let self = to[`typeName`](args[0])
-                let value = to[`fieldType`](p)
+                let value = to[`fieldType`](args[1])
                 self.`fieldName` = value[]
                 self[].`signal`()
           stm.add("  addSlot(\"$1\", \"$2\", $3)\n" % [typeNameStr, $fieldName, $fieldName])
@@ -227,7 +268,7 @@ block:
 
 
   objectTy.add(recList)
-  echo result.treeRepr
+  #echo result.treeRepr
   typeDeclaration = parseStmt(stm)
   result.add(signalProcs)
   result.add(slotProcs)
