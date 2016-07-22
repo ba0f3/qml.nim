@@ -1,8 +1,5 @@
 import macros, strutils, tables, capi, util
 
-let
-  MEMBER_INFO_LENGTH* = sizeof(MemberInfo)
-
 var
   typeInfoMap = newTable[string, TypeInfo]()
   constructors = newTable[string, proc(retval: var pointer, args: varargs[pointer])]()
@@ -84,162 +81,101 @@ proc rewriteMethodDeclaration(node: NimNode) {.compileTime.} =
   node.params = params
   node.body = body
 
-proc processFieldList(body: NimNode): seq[tuple[name, typ: string]] {.compileTime.} =
-  result = @[]
+
+proc processRecList(body: NimNode): NimNode {.compileTime.} =
+  result = newNimNode(nnkRecList)
+
   var fieldList: seq[string] = @[]
+
   for node in body.children:
     if node.kind  == nnkVarSection:
       for n in node.children:
-        let
-          fieldName = $n[0]
-          fieldType = $n[1]
-        if fieldName.toLower() in fieldList:
-          raise newException(FieldError, "redefinition of '$1'" % [fieldName])
-        fieldList.add(fieldName.toLower())
-        result.add((fieldName, fieldType))
+        let fieldName = toLower($n[0])
+        if fieldName in fieldList:
+          raise newException(FieldError, "redefinition of '$1'" % [$n[0]])
+        fieldList.add(fieldName)
 
-macro Q_OBJECT*(head: expr, body: stmt): stmt {.immediate.} =
-  inc(typeIndex)
-  result = newStmtList()
+        result.add(n)
 
-  var typeName, baseName: NimNode
-  if head.kind == nnkIdent:
-    typeName = head
-  elif head.kind == nnkInfix and $head[0] == "of":
-    typeName = head[1]
-    baseName = head[2]
-  else:
-    quit "Invalid node: " & head.lispRepr
+proc createMandatoryMethods(typeName: string, body: NimNode) {.compileTime.} =
+  var methodList: seq[string] = @[]
 
-  if not baseName.isNil:
-    raise newException(SystemError, "inheritance for QObject is not supported")
+  # get declared methods
+  for node in body.children:
+    if node.kind == nnkMethodDef or node.kind == nnkProcDef:
+      if node[0].kind == nnkIdent:
+        methodList.add(toLower($node[0]))
+      else:
+        methodList.add(toLower($node[0][1]))
 
+  # construct constructor if not exists
+  let constructorName = ident("new" & typeName)
+
+  if not (constructorName.toLower in methodList):
+    body.add(newProc(ident(constructorName), [ident(typeName)]))
+
+
+  # construct setters & getters
   var
-    objectTy = newNimNode(nnkObjectTy)
-    fieldList, methodList: seq[string] = @[]
+    typeNameNode = ident(typeName)
+    fieldNameNode, fieldTypeNode: NimNode
+    setterNameNode: NimNode
 
-  objectTy.add(newEmptyNode(), newEmptyNode())
-  result.add(newNimNode(nnkTypeSection).add(
-    newNimNode(nnkTypeDef).add(typeName, newEmptyNode(), objectTy)
-  ))
+  for node in body.children:
+    if node.kind == nnkVarSection:
+      for n in node.children:
 
-  fieldList = processFieldList(body)
-
-  var
-
-
-    fieldName, fieldType: NimNode
-    fieldNameStr, fieldTypeStr: string
-    signal, setter: NimNode
-    isArray: bool
-    typeNameStr = $typeName
-    constructorName = ident("new" & typeNameStr)
+        if n[1].kind == nnkBracketExpr and n[1][0] != ident("seq"):
+            raise newException(ValueError, "only seq is support as array")
 
 
-    recList = newNimNode(nnkRecList)
-    slotProcs = newStmtList()
-    signalProcs = newStmtList()
-    typeDeclaration, memberDeclaration = newStmtList()
+        fieldNameNode = n[0]
+        fieldTypeNode = n[1]
 
-    numField: int
-    numMethod: int
+        setterNameNode = ident(getSetterName($fieldNameNode))
 
+
+        if not (toLower($fieldNameNode) in methodList):
+          body.add quote do:
+            proc `fieldNameNode`*(self: `typeNameNode`): ptr DataValue =
+              result = dataValueOf(self.`fieldName`)
+
+        if not (toLower($setterNameNode) in methodList):
+          body.add quote do:
+            proc `setterNameNode`*(self: `typeNameNode`, value: `fieldNameNode`) =
+              self.`fieldName` = value[]
+
+  #for node in body.children:
+  #  if node.kind == nnkMethodDef or node.kind == nnkProcDef:
+  #    rewriteMethodDeclaration(node)
+
+proc construcTypeInfo*(typeName: string, body: NimNode): NimNode =
   var stm = """
 var
   membersSize, membersi: int
   members: uint
   memberInfo: ptr MemberInfo"""
 
-  for node in body.children:
-    case node.kind:
-      of nnkMethodDef, nnkProcDef:
-        if node[0].kind == nnkIdent:
-          methodList.add(toLower($node[0]))
-        else:
-          methodList.add(toLower($node[0][1]))
-        inc(numMethod)
-        rewriteMethodDeclaration(node)
-        result.add(node)
-
-      of nnkVarSection:
-        for n in node.children:
-          fieldNameStr = toLower($n[0])
-          if fieldNameStr in fieldList:
-            raise newException(FieldError, "redefinition of '$1' [$2]" % [fieldNameStr, $typeName])
-          fieldList.add(fieldNameStr)
-
-        inc(numField)
-      else:
-        discard
   let
     methodsLen = numField * 2 # setter + getter + sinal?
     membersLen = numField * 3 # field + setter * getter
+
+  for node in body.children:
+    if node.kind == nnkVarSection:
+      discard
   stm.add """
 
   typeInfo$1: TypeInfo
-members = cast[uint](alloc(MEMBER_INFO_LENGTH * $2))
+members = cast[uint](alloc($2))
 membersi = 0
-""" % [$typeIndex, $membersLen]
+""" % [$typeIndex, $(membersLen)]
 
   if not (toLower($constructorName) in methodList):
-    result.add quote do:
-      proc `constructorName`*(p: var pointer, args: varargs[pointer]) =
-        if p.isNil:
-          p = alloc(`typeName`)
   result.add quote do:
     registerConstructor(`typeNameStr`, `constructorName`)
   var i = 0
   for node in body.children:
     if node.kind == nnkVarSection:
-      # variables get turned into fields of the type.
-      for n in node.children:
-        fieldName = n[0]
-        fieldType = n[1]
-        fieldNameStr = $fieldName
-        fieldTypeStr = $fieldType
-
-        if n[1].kind == nnkBracketExpr:
-          if n[1][0] != ident("seq"):
-            raise newException(ValueError, "only seq is support as array")
-          isArray = true
-        else:
-          isArray = false
-
-        recList.add(n)
-
-        signal = ident("$1Changed" % $fieldName)
-        setter = ident(getSetterName($fieldName))
-
-        if isArray:
-          slotProcs.add quote do:
-            proc `fieldName`*(self: `typeName`): var `fieldType` =
-              if self.`fieldName`.isNil:
-                self.`fieldName` = @[]
-              self.`fieldName`
-        else:
-          slotProcs.add quote do:
-            proc `fieldName`*(p: var pointer, args: varargs[pointer]) =
-              var self = to[`typeName`](args[0])[]
-              if p.isNil:
-                p = alloc(DataValue)
-              var
-                dv = to[DataValue](p)
-              dataValueOf(dv, self.`fieldName`)
-
-          if not (($setter).toLower() in methodList): # allow custom setters
-            slotProcs.add quote do:
-              proc `setter`*(p: var pointer, args: varargs[pointer]) =
-                let self = to[`typeName`](args[0])
-                let value = to[`fieldType`](args[1])
-                self.`fieldName` = value[]
-                self[].`signal`()
-          stm.add("addSlot(\"$1\", \"$2\", $3)\n" % [typeNameStr, $fieldName, $fieldName])
-          stm.add("addSlot(\"$1\", \"$2\", $3)\n" % [typeNameStr, $setter, $setter])
-
-          signalProcs.add quote do:
-            proc `signal`*(self: `typeName`) =
-              discard #echo "signal ", self
-        inc(i)
         stm.add """
 
 memberInfo = to[MemberInfo](members + uint(MEMBER_INFO_LENGTH * membersi))
@@ -260,7 +196,36 @@ addType("$2", typeInfo$1)
   echo stm
   objectTy.add(recList)
   typeDeclaration = parseStmt(stm)
-  result.add(signalProcs)
-  result.add(slotProcs)
-  result.add(typeDeclaration)
-  #echo slotProcs.treeRepr
+
+macro Q_OBJECT*(head: expr, body: stmt): stmt {.immediate.} =
+  inc(typeIndex)
+  result = newStmtList()
+
+  var typeName, baseName: NimNode
+  if head.kind == nnkIdent:
+    typeName = head
+  elif head.kind == nnkInfix and $head[0] == "of":
+    typeName = head[1]
+    baseName = head[2]
+  else:
+    quit "Invalid node: " & head.lispRepr
+
+  if not baseName.isNil:
+    raise newException(SystemError, "inheritance for QObject is not supported")
+
+  var
+    objectTy = newNimNode(nnkObjectTy)
+    fieldList: seq[MemberInfo]
+    methodList: seq[string] = @[]
+    numField, numMethod: int
+
+  objectTy.add(newEmptyNode(), newEmptyNode())
+  result.add(newNimNode(nnkTypeSection).add(
+    newNimNode(nnkTypeDef).add(typeName, newEmptyNode(), objectTy)
+  ))
+
+
+  # variables get turned into fields of the type.
+  result.add(processRecList(body))
+  createMandatoryMethods($typeName, body)
+  constructTypeInfo(body)
