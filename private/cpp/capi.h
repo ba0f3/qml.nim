@@ -75,13 +75,12 @@ typedef struct {
 } DataValue;
 
 typedef struct {
-    char *memberName; // points to memberNames
+    char *memberName;
     DataType memberType;
     int reflectIndex;
     int reflectGetIndex;
     int reflectSetIndex;
     int metaIndex;
-    int addrOffset;
     char *methodSignature;
     char *resultSignature;
     int numIn;
@@ -90,6 +89,7 @@ typedef struct {
 
 typedef struct {
     char *typeName;
+    int constructorIndex;
     GoMemberInfo *fields;
     GoMemberInfo *methods;
     GoMemberInfo *members; // fields + methods
@@ -97,8 +97,6 @@ typedef struct {
     int fieldsLen;
     int methodsLen;
     int membersLen;
-    char *memberNames;
-
     QMetaObject_ *metaObject;
 } GoTypeInfo;
 

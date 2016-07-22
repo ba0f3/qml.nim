@@ -79,7 +79,6 @@ type
     reflectGetIndex*: cint
     reflectSetIndex*: cint
     metaIndex*: cint
-    addrOffset*: cint
     methodSignature*: cstring
     resultSignature*: cstring
     numIn*: cint
@@ -87,6 +86,7 @@ type
 
   TypeInfo* {.cpp, importc: "GoTypeInfo".} = object
     typeName*: cstring
+    constructorIndex*: int
     fields*: ptr MemberInfo
     methods*: ptr MemberInfo
     members*: ptr MemberInfo  ## # fields + methods
@@ -94,7 +94,6 @@ type
     fieldsLen*: cint
     methodsLen*: cint
     membersLen*: cint
-    memberNames*: cstring
     metaObject*: ptr QMetaObject
 
   LogMessage* {.cpp.} = object

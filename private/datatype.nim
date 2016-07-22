@@ -1,9 +1,11 @@
 import macros, strutils, tables, capi, util
 
+type
+  QMethod = proc(retval: var pointer, args: varargs[pointer])
+
 var
   typeInfoMap = newTable[string, TypeInfo]()
-  constructors = newTable[string, proc(retval: var pointer, args: varargs[pointer])]()
-  slots = newTable[string, proc(retval: var pointer, args: varargs[pointer])]()
+  methodMaps: seq[QMethod] = @[]
   pointerToTypeMap = newTable[pointer, string]()
   typeIndex {.compileTime.} = 0
 
@@ -16,17 +18,14 @@ proc getType*(name: string): TypeInfo =
 proc getMemberInfo*(typeInfo: TypeInfo, memberIndex: int): ptr MemberInfo =
   to[MemberInfo](cast[uint](typeInfo.members) + uint(sizeof(MemberInfo) * memberIndex))
 
-proc registerConstructor*(typeName: string, f: proc(retval: var pointer, args: varargs[pointer])) =
-  constructors.add(typeName, f)
+#proc getConstructor*(typeName: string): proc(retval: var pointer, args: varargs[pointer]) =
+#  constructors[typeName]
 
-proc getConstructor*(typeName: string): proc(retval: var pointer, args: varargs[pointer]) =
-  constructors[typeName]
+#proc addSlot*(typeName, methodName: string, f: proc(retval: var pointer, args: varargs[pointer])) =
+#  slots.add("$1.$2" % [typeName, methodName], f)
 
-proc addSlot*(typeName, methodName: string, f: proc(retval: var pointer, args: varargs[pointer])) =
-  slots.add("$1.$2" % [typeName, methodName], f)
-
-proc getSlot*(typeName, methodName: string): proc(retval: var pointer, args: varargs[pointer]) =
-  slots["$1.$2" % [typeName, methodName]]
+#proc getSlot*(typeName, methodName: string): proc(retval: var pointer, args: varargs[pointer]) =
+#  slots["$1.$2" % [typeName, methodName]]
 
 proc trackPointer*(p: pointer, typ: string) =
   pointerToTypeMap.add(p, typ)
@@ -109,10 +108,10 @@ proc createMandatoryMethods(typeName: string, body: NimNode) {.compileTime.} =
         methodList.add(toLower($node[0][1]))
 
   # construct constructor if not exists
-  let constructorName = ident("new" & typeName)
+  let constructorNameNode = ident("new" & typeName)
 
-  if not (constructorName.toLower in methodList):
-    body.add(newProc(ident(constructorName), [ident(typeName)]))
+  if not (toLower($constructorNameNode) in methodList):
+    body.add(newProc(constructorNameNode, params = [ident(typeName)]))
 
 
   # construct setters & getters
@@ -138,27 +137,26 @@ proc createMandatoryMethods(typeName: string, body: NimNode) {.compileTime.} =
         if not (toLower($fieldNameNode) in methodList):
           body.add quote do:
             proc `fieldNameNode`*(self: `typeNameNode`): ptr DataValue =
-              result = dataValueOf(self.`fieldName`)
+              result = dataValueOf(self.`fieldNameNode`)
 
         if not (toLower($setterNameNode) in methodList):
           body.add quote do:
             proc `setterNameNode`*(self: `typeNameNode`, value: `fieldNameNode`) =
-              self.`fieldName` = value[]
+              self.`fieldNameNode` = value[]
 
   #for node in body.children:
   #  if node.kind == nnkMethodDef or node.kind == nnkProcDef:
   #    rewriteMethodDeclaration(node)
 
-proc construcTypeInfo*(typeName: string, body: NimNode): NimNode =
+proc construcTypeInfo*(typeName: string, body: NimNode): NimNode {.compileTime.} =
+  let constructorNameNode = ident("new" & typeName)
+  # add method to seq, then get index set to typeinfo
+
   var stm = """
 var
   membersSize, membersi: int
   members: uint
   memberInfo: ptr MemberInfo"""
-
-  let
-    methodsLen = numField * 2 # setter + getter + sinal?
-    membersLen = numField * 3 # field + setter * getter
 
   for node in body.children:
     if node.kind == nnkVarSection:
@@ -170,9 +168,6 @@ members = cast[uint](alloc($2))
 membersi = 0
 """ % [$typeIndex, $(membersLen)]
 
-  if not (toLower($constructorName) in methodList):
-  result.add quote do:
-    registerConstructor(`typeNameStr`, `constructorName`)
   var i = 0
   for node in body.children:
     if node.kind == nnkVarSection:
@@ -194,8 +189,8 @@ typeInfo$1.fields = typeInfo$1.members
 addType("$2", typeInfo$1)
 """ % [$typeIndex, typeNameStr, $numField, $methodsLen, $membersLen]
   echo stm
-  objectTy.add(recList)
-  typeDeclaration = parseStmt(stm)
+
+  result = parseStmt(stm)
 
 macro Q_OBJECT*(head: expr, body: stmt): stmt {.immediate.} =
   inc(typeIndex)
@@ -220,12 +215,17 @@ macro Q_OBJECT*(head: expr, body: stmt): stmt {.immediate.} =
     numField, numMethod: int
 
   objectTy.add(newEmptyNode(), newEmptyNode())
+
   result.add(newNimNode(nnkTypeSection).add(
     newNimNode(nnkTypeDef).add(typeName, newEmptyNode(), objectTy)
   ))
 
 
   # variables get turned into fields of the type.
-  result.add(processRecList(body))
+  objectTy.add(processRecList(body))
+
   createMandatoryMethods($typeName, body)
   constructTypeInfo(body)
+
+  # 1. rewrite method declaration
+  # 2. add procs to result
