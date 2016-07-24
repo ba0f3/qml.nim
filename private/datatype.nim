@@ -18,6 +18,10 @@ proc getType*(name: string): TypeInfo =
 proc getMemberInfo*(typeInfo: TypeInfo, memberIndex: int): ptr MemberInfo =
   to[MemberInfo](cast[uint](typeInfo.members) + uint(sizeof(MemberInfo) * memberIndex))
 
+proc registerMethod*(m: QMethod): int =
+  methodMaps.add(m)
+  result = methodMaps.len - 1
+
 #proc getConstructor*(typeName: string): proc(retval: var pointer, args: varargs[pointer]) =
 #  constructors[typeName]
 
@@ -144,12 +148,29 @@ proc createMandatoryMethods(typeName: string, body: NimNode) {.compileTime.} =
             proc `setterNameNode`*(self: `typeNameNode`, value: `fieldNameNode`) =
               self.`fieldNameNode` = value[]
 
-  #for node in body.children:
-  #  if node.kind == nnkMethodDef or node.kind == nnkProcDef:
-  #    rewriteMethodDeclaration(node)
+proc newMemberInfo(name: string, typ: DataType, index: int): MemberInfo =
+  result.memberName = name
+  result.memberType = typ
+  result.reflectIndex = index.cint
 
 proc construcTypeInfo*(typeName: string, body: NimNode): NimNode {.compileTime.} =
-  let constructorNameNode = ident("new" & typeName)
+  result = newStmtList()
+  var index = 0
+  for node in body.children:
+    case node.kind
+    of nnkVarSection:
+      for n in node.children:
+        inc(index)
+        let
+          fieldName = $n[0]
+          fieldType = $n[1]
+        result.add(quote do:
+          member = newMemberInfo(`fieldName`, dataTypeOf("`fieldType`"), i)
+        )
+    else: discard
+
+
+
   # add method to seq, then get index set to typeinfo
 
   var stm = """
