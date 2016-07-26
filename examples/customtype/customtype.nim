@@ -7,6 +7,8 @@ Q_OBJECT NimType:
     echo "Text changing to: ", value[]
     self.text = value[]
 
+  proc newNimType*(): NimType =
+    discard
 
 Q_OBJECT NimSingleton:
   var event: string

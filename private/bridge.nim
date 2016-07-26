@@ -2,7 +2,9 @@ import capi, datatype, util
 
 proc hookGoValueTypeNew*(cvalue: ptr GoValue, spec: ptr TypeSpec): ptr GoAddr {.exportc.} =
   var p: pointer
-  getConstructor($spec.name)(p)
+  let
+    typeInfo = getType($spec.name)
+    constructor = getMethod(typeInfo.constructorIndex)
   trackPointer(p, $spec.name)
   to[GoAddr](p)
 
@@ -17,7 +19,7 @@ proc hookGoValueReadField*(engine: ptr QQmlEngine, value: ptr GoAddr, memberInde
     typeInfo = getType(getPointerType(value))
     memberInfo = getMemberInfo(typeInfo, memberIndex-1)
 
-  let getMethod = getSlot($typeInfo.typeName, $memberInfo.memberName)
+  let getMethod = getMethod(getIndex)
   var
     ret: pointer
   getMethod(ret, cast[pointer](value))
@@ -29,7 +31,7 @@ proc hookGoValueWriteField*(engine: ptr QQmlEngine, value: ptr GoAddr, memberInd
   let
     typeInfo = getType(getPointerType(value))
     memberInfo = getMemberInfo(typeInfo, memberIndex-1)
-    setMethod = getSlot($typeInfo.typeName, getSetterName($memberInfo.memberName))
+    setMethod = getMethod(setIndex)
     length = getDataLength(assign)
   var
       NULL: pointer
